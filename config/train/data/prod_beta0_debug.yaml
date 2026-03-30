@@ -1,0 +1,9 @@
+dataset:
+  num_steps: ${eval:'${wm.num_preds} + ${wm.history_size}'}
+  frameskip: 1
+  name: prod_beta0_debug
+  keys_to_load:
+    - pixels
+    - action
+  keys_to_cache:
+    - action

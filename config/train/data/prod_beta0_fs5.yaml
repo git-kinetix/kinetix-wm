@@ -1,0 +1,11 @@
+dataset:
+  num_steps: ${eval:'${wm.num_preds} + ${wm.history_size}'}
+  # frameskip=5 at 30fps → observe every ~167ms. Actions between frames are concatenated
+  # so effective_act_dim = 5 * action_dim = 30 for root delta (6D)
+  frameskip: 5
+  name: prod_beta0_200ep
+  keys_to_load:
+    - pixels
+    - action
+  keys_to_cache:
+    - action
