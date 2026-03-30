@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+
+# Training artifacts
+lightning_logs/
+outputs/
+*.ckpt
+*.h5
+*.hdf5
+
+# Images/media (generated)
+*.png
+*.mp4
+!assets/*.gif
+
+# Environment snapshots
+environment*.json
+requirements_frozen*.txt
+
+# Logs
+*.log
+
+# IDE/tools
+.playwright-mcp/
+.pytest_cache/
+.idea/
+.vscode/
