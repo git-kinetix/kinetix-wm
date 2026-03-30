@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeWM &mdash; Training the Representation Space</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,300;0,7..72,400;0,7..72,500;1,7..72,400&family=Source+Code+Pro:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg-deep: #06080d;
+    --bg-primary: #0a0e17;
+    --bg-elevated: #111827;
+    --bg-code: #0d1220;
+    --bg-code-header: #151d2e;
+
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+
+    --accent-amber: #f59e0b;
+    --accent-amber-dim: #b45309;
+    --accent-cyan: #22d3ee;
+    --accent-cyan-dim: #0e7490;
+    --accent-rose: #f43f5e;
+    --accent-emerald: #34d399;
+    --accent-violet: #a78bfa;
+
+    --border: #1e293b;
+    --border-subtle: #1a2234;
+
+    --font-display: 'Syne', sans-serif;
+    --font-body: 'Literata', Georgia, serif;
+    --font-mono: 'Source Code Pro', 'Fira Code', monospace;
+
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-amber-dim) var(--bg-deep);
+  }
+
+  body {
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* ── Grain Overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+  }
+
+  /* ── Layout Shell ── */
+  .page-wrapper {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    position: relative;
+    padding: 100px 0 72px;
+    text-align: center;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -120px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(ellipse, rgba(245,158,11,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--accent-amber);
+    border: 1px solid var(--accent-amber-dim);
+    padding: 6px 18px;
+    border-radius: 999px;
+    margin-bottom: 28px;
+    animation: fadeSlideDown 0.8s ease both;
+  }
+
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.6rem, 5.5vw, 4rem);
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+    animation: fadeSlideDown 0.8s 0.1s ease both;
+  }
+
+  .hero h1 span {
+    background: linear-gradient(135deg, var(--accent-amber) 0%, var(--accent-cyan) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-subtitle {
+    font-family: var(--font-body);
+    font-size: 1.15rem;
+    color: var(--text-secondary);
+    max-width: 560px;
+    margin: 0 auto 36px;
+    line-height: 1.7;
+    animation: fadeSlideDown 0.8s 0.2s ease both;
+  }
+
+  .hero-meta {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    animation: fadeSlideDown 0.8s 0.3s ease both;
+  }
+
+  .hero-meta span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .hero-meta .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .dot--amber { background: var(--accent-amber); }
+  .dot--cyan { background: var(--accent-cyan); }
+  .dot--emerald { background: var(--accent-emerald); }
+
+  /* ── Table of Contents ── */
+  .toc {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    margin-bottom: 64px;
+    animation: fadeSlideDown 0.8s 0.4s ease both;
+  }
+
+  .toc-title {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent-amber);
+    margin-bottom: 16px;
+  }
+
+  .toc ol {
+    list-style: none;
+    counter-reset: toc-counter;
+    columns: 2;
+    column-gap: 40px;
+  }
+
+  .toc li {
+    counter-increment: toc-counter;
+    margin-bottom: 8px;
+    break-inside: avoid;
+  }
+
+  .toc a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 15px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    transition: color 0.2s;
+  }
+
+  .toc a::before {
+    content: counter(toc-counter, decimal-leading-zero);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    min-width: 20px;
+  }
+
+  .toc a:hover { color: var(--accent-amber); }
+
+  /* ── Sections ── */
+  section {
+    margin-bottom: 72px;
+  }
+
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--accent-amber-dim);
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  h2 {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+    line-height: 1.2;
+  }
+
+  h3 {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 40px;
+    margin-bottom: 14px;
+    letter-spacing: -0.01em;
+  }
+
+  h4 {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--accent-cyan);
+    margin-top: 28px;
+    margin-bottom: 10px;
+  }
+
+  p {
+    margin-bottom: 16px;
+    color: var(--text-secondary);
+  }
+
+  a {
+    color: var(--accent-cyan);
+    text-decoration: underline;
+    text-decoration-color: var(--accent-cyan-dim);
+    text-underline-offset: 3px;
+    transition: color 0.2s, text-decoration-color 0.2s;
+  }
+
+  a:hover {
+    color: var(--accent-amber);
+    text-decoration-color: var(--accent-amber);
+  }
+
+  strong { color: var(--text-primary); font-weight: 500; }
+
+  ul, ol {
+    padding-left: 24px;
+    margin-bottom: 16px;
+  }
+
+  li {
+    margin-bottom: 6px;
+    color: var(--text-secondary);
+  }
+
+  li::marker {
+    color: var(--text-muted);
+  }
+
+  hr {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 56px 0;
+  }
+
+  /* ── Code Blocks ── */
+  .code-block {
+    position: relative;
+    background: var(--bg-code);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    margin: 20px 0 24px;
+    overflow: hidden;
+  }
+
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-code-header);
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .code-lang {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+  }
+
+  .code-file {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent-violet);
+  }
+
+  .copy-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .copy-btn:hover {
+    border-color: var(--accent-amber);
+    color: var(--accent-amber);
+  }
+
+  pre {
+    padding: 20px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--text-secondary);
+    tab-size: 4;
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+  }
+
+  p code, li code {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    padding: 2px 7px;
+    border-radius: 4px;
+    color: var(--accent-cyan);
+    font-size: 0.85em;
+  }
+
+  /* ── Syntax Highlighting ── */
+  .kw  { color: var(--accent-rose); }
+  .fn  { color: #60a5fa; }
+  .str { color: var(--accent-emerald); }
+  .num { color: var(--accent-amber); }
+  .cmt { color: var(--text-muted); font-style: italic; }
+  .op  { color: var(--text-muted); }
+  .cls { color: var(--accent-violet); }
+  .var { color: var(--text-primary); }
+  .arg { color: #fb923c; }
+  .dec { color: var(--accent-cyan); }
+
+  /* ── Callout Boxes ── */
+  .callout {
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin: 24px 0;
+    border-left: 3px solid;
+  }
+
+  .callout p:last-child { margin-bottom: 0; }
+
+  .callout--info {
+    background: rgba(34,211,238,0.06);
+    border-color: var(--accent-cyan);
+  }
+
+  .callout--info .callout-label { color: var(--accent-cyan); }
+
+  .callout--warn {
+    background: rgba(245,158,11,0.06);
+    border-color: var(--accent-amber);
+  }
+
+  .callout--warn .callout-label { color: var(--accent-amber); }
+
+  .callout--key {
+    background: rgba(167,139,250,0.06);
+    border-color: var(--accent-violet);
+  }
+
+  .callout--key .callout-label { color: var(--accent-violet); }
+
+  .callout--success {
+    background: rgba(52,211,153,0.06);
+    border-color: var(--accent-emerald);
+  }
+
+  .callout--success .callout-label { color: var(--accent-emerald); }
+
+  .callout-label {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 8px;
+  }
+
+  /* ── Architecture Diagram ── */
+  .arch-diagram {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 40px 24px;
+    margin: 32px 0;
+    overflow-x: auto;
+  }
+
+  .arch-diagram svg {
+    display: block;
+    margin: 0 auto;
+  }
+
+  /* ── Config Table ── */
+  .config-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0 28px;
+    font-size: 14.5px;
+  }
+
+  .config-table thead th {
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    text-align: left;
+    padding: 10px 16px;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .config-table tbody td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    vertical-align: top;
+  }
+
+  .config-table tbody tr:hover td {
+    background: rgba(245,158,11,0.03);
+  }
+
+  .config-table code {
+    background: var(--bg-code);
+    border: 1px solid var(--border-subtle);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12.5px;
+    color: var(--accent-cyan);
+    white-space: nowrap;
+  }
+
+  .config-table .cat-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent-amber);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* ── Step Indicators ── */
+  .step {
+    display: flex;
+    gap: 20px;
+    margin: 28px 0;
+    align-items: flex-start;
+  }
+
+  .step-num {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--accent-amber);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent-amber);
+    margin-top: 2px;
+  }
+
+  .step-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .step-content h4 {
+    margin-top: 0;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+  }
+
+  /* ── Math Blocks ── */
+  .math-block {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 32px;
+    margin: 24px 0;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    color: var(--text-primary);
+    line-height: 2;
+    overflow-x: auto;
+  }
+
+  .math-var { color: var(--accent-cyan); font-style: italic; }
+  .math-fn { color: var(--accent-amber); }
+  .math-op { color: var(--text-muted); }
+  .math-eq { color: var(--accent-rose); }
+
+  /* ── Pipeline Flow ── */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 32px 0;
+    overflow-x: auto;
+    padding: 8px 0;
+  }
+
+  .pipe-node {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 20px;
+    text-align: center;
+    flex-shrink: 0;
+    min-width: 120px;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .pipe-node:hover {
+    border-color: var(--accent-amber);
+    transform: translateY(-2px);
+  }
+
+  .pipe-node-label {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .pipe-node-detail {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .pipe-arrow {
+    flex-shrink: 0;
+    color: var(--accent-amber-dim);
+    font-size: 20px;
+    padding: 0 6px;
+    font-family: var(--font-mono);
+  }
+
+  /* ── File Tree ── */
+  .file-tree {
+    background: var(--bg-code);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin: 20px 0 24px;
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+    overflow-x: auto;
+  }
+
+  .file-tree .dir { color: var(--accent-amber); font-weight: 500; }
+  .file-tree .file { color: var(--text-secondary); }
+  .file-tree .file--main { color: var(--accent-cyan); font-weight: 500; }
+  .file-tree .file--cfg { color: var(--accent-violet); }
+  .file-tree .annotation {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-style: italic;
+  }
+
+  /* ── Dual Column ── */
+  .dual-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 24px 0;
+  }
+
+  @media (max-width: 700px) {
+    .dual-col { grid-template-columns: 1fr; }
+    .toc ol { columns: 1; }
+    .pipeline { flex-direction: column; }
+    .pipe-arrow { transform: rotate(90deg); }
+    .hero-meta { flex-direction: column; gap: 8px; }
+  }
+
+  .dual-col > div {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+
+  .dual-col h4 { margin-top: 0; }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    padding: 48px 0 64px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 13px;
+    font-family: var(--font-mono);
+  }
+
+  footer a {
+    color: var(--accent-amber);
+    text-decoration: none;
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeSlideDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<div class="page-wrapper">
+
+  <!-- ═══════════════════════ HERO ═══════════════════════ -->
+  <header class="hero">
+    <div class="hero-badge">Training Guide</div>
+    <h1>LeWM<br><span>Representation Space</span></h1>
+    <p class="hero-subtitle">
+      A complete walkthrough for training the Joint Embedding Predictive Architecture
+      that learns stable world representations from raw pixels using only two loss terms.
+    </p>
+    <div class="hero-meta">
+      <span><span class="dot dot--amber"></span> ~15M params</span>
+      <span><span class="dot dot--cyan"></span> Single GPU</span>
+      <span><span class="dot dot--emerald"></span> 2 loss terms</span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════ TOC ═══════════════════════ -->
+  <nav class="toc">
+    <div class="toc-title">Contents</div>
+    <ol>
+      <li><a href="#overview">What LeWM Learns</a></li>
+      <li><a href="#architecture">Representation Architecture</a></li>
+      <li><a href="#prerequisites">Prerequisites &amp; Installation</a></li>
+      <li><a href="#data">Data Preparation</a></li>
+      <li><a href="#config">Configuration Reference</a></li>
+      <li><a href="#losses">The Two Losses</a></li>
+      <li><a href="#training">Launching Training</a></li>
+      <li><a href="#monitoring">Monitoring &amp; Checkpoints</a></li>
+      <li><a href="#coderef">Source Code Map</a></li>
+      <li><a href="#advanced">Advanced Tuning</a></li>
+    </ol>
+  </nav>
+
+  <!-- ═══════════════════════ §1 OVERVIEW ═══════════════════════ -->
+  <section id="overview" class="reveal">
+    <span class="section-label">01</span>
+    <h2>What LeWM Learns</h2>
+
+    <p>
+      LeWorldModel is a <strong>Joint Embedding Predictive Architecture</strong> (JEPA) that learns a
+      compact representation space from raw video frames. Unlike reconstruction-based methods that decode
+      back to pixels, LeWM learns to <strong>predict future states in embedding space</strong>&thinsp;&mdash;&thinsp;producing
+      representations that capture the physical structure of the environment without pixel-level supervision.
+    </p>
+
+    <div class="callout callout--key">
+      <div class="callout-label">Key Insight</div>
+      <p>
+        The representation is shaped by two forces: a <strong>prediction loss</strong> that makes embeddings
+        predictively useful, and <strong>SIGReg</strong> that prevents collapse by enforcing the embedding
+        distribution stays close to an isotropic Gaussian. This replaces the six loss terms used by prior
+        end-to-end JEPAs with just two&thinsp;&mdash;&thinsp;reducing tunable hyperparameters from six to one.
+      </p>
+    </div>
+
+    <p>
+      The trained encoder maps each video frame to a 192-dimensional embedding vector. These embeddings have
+      been shown to encode meaningful physical quantities (position, velocity, contact forces) and can detect
+      physically implausible events through surprise estimation.
+    </p>
+  </section>
+
+  <hr>
+
+  <!-- ═══════════════════════ §2 ARCHITECTURE ═══════════════════════ -->
+  <section id="architecture" class="reveal">
+    <span class="section-label">02</span>
+    <h2>Representation Architecture</h2>
+
+    <p>
+      The training pipeline consists of five modules wired together. The <strong>encoder</strong> and
+      <strong>projector</strong> form the representation backbone&thinsp;&mdash;&thinsp;these are what you keep
+      after training. The predictor exists to provide the learning signal; it forces the encoder to produce
+      embeddings from which future states can be inferred.
+    </p>
+
+    <!-- Pipeline visualization -->
+    <div class="pipeline">
+      <div class="pipe-node">
+        <div class="pipe-node-label">Pixels</div>
+        <div class="pipe-node-detail">(B, T, 3, 224, 224)</div>
+      </div>
+      <div class="pipe-arrow">&rarr;</div>
+      <div class="pipe-node" style="border-color: var(--accent-amber);">
+        <div class="pipe-node-label" style="color: var(--accent-amber);">ViT Encoder</div>
+        <div class="pipe-node-detail">tiny &middot; patch 14</div>
+      </div>
+      <div class="pipe-arrow">&rarr;</div>
+      <div class="pipe-node" style="border-color: var(--accent-amber);">
+        <div class="pipe-node-label" style="color: var(--accent-amber);">Projector</div>
+        <div class="pipe-node-detail">MLP &middot; BN</div>
+      </div>
+      <div class="pipe-arrow">&rarr;</div>
+      <div class="pipe-node" style="border-color: var(--accent-emerald);">
+        <div class="pipe-node-label" style="color: var(--accent-emerald);">Embeddings</div>
+        <div class="pipe-node-detail">(B, T, 192)</div>
+      </div>
+      <div class="pipe-arrow">&rarr;</div>
+      <div class="pipe-node">
+        <div class="pipe-node-label">ARPredictor</div>
+        <div class="pipe-node-detail">6L Transformer</div>
+      </div>
+    </div>
+
+    <h3>Vision Transformer Encoder</h3>
+    <p>
+      The encoder is a <strong>ViT-tiny</strong> from HuggingFace, trained from scratch (no pretrained weights).
+      It processes each 224&times;224 frame independently, splitting it into 14&times;14 patches, and outputs a
+      CLS token embedding that represents the full frame.
+    </p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">Python</span>
+        <span class="code-file">train.py:82&ndash;88</span>
+      </div>
+      <pre><span class="var">encoder</span> <span class="op">=</span> <span class="fn">spt.backbone.utils.vit_hf</span>(
+    cfg.<span class="var">encoder_scale</span>,        <span class="cmt"># "tiny"</span>
+    <span class="arg">patch_size</span><span class="op">=</span>cfg.<span class="var">patch_size</span>,  <span class="cmt"># 14</span>
+    <span class="arg">image_size</span><span class="op">=</span>cfg.<span class="var">img_size</span>,   <span class="cmt"># 224</span>
+    <span class="arg">pretrained</span><span class="op">=</span><span class="num">False</span>,
+    <span class="arg">use_mask_token</span><span class="op">=</span><span class="num">False</span>,
+)</pre>
+    </div>
+
+    <h3>Projector</h3>
+    <p>
+      The projector is a 2-layer MLP with BatchNorm and GELU activation. It maps the ViT's hidden dimension
+      down to the embedding dimension (192 by default). This bottleneck is what defines the representation space.
+    </p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">Python</span>
+        <span class="code-file">module.py:217&ndash;241</span>
+      </div>
+      <pre><span class="kw">class</span> <span class="cls">MLP</span>(<span class="cls">nn.Module</span>):
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="var">self</span>, <span class="arg">input_dim</span>, <span class="arg">hidden_dim</span>, <span class="arg">output_dim</span><span class="op">=</span><span class="num">None</span>,
+                 <span class="arg">norm_fn</span><span class="op">=</span><span class="cls">nn.LayerNorm</span>, <span class="arg">act_fn</span><span class="op">=</span><span class="cls">nn.GELU</span>):
+        <span class="var">self</span>.<span class="var">net</span> <span class="op">=</span> <span class="cls">nn.Sequential</span>(
+            <span class="cls">nn.Linear</span>(<span class="var">input_dim</span>, <span class="var">hidden_dim</span>),   <span class="cmt"># hidden_size &rarr; 2048</span>
+            <span class="fn">norm_fn</span>(<span class="var">hidden_dim</span>),               <span class="cmt"># BatchNorm1d(2048)</span>
+            <span class="fn">act_fn</span>(),                          <span class="cmt"># GELU</span>
+            <span class="cls">nn.Linear</span>(<span class="var">hidden_dim</span>, <span class="var">output_dim</span>),  <span class="cmt"># 2048 &rarr; 192</span>
+        )</pre>
+    </div>
+
+    <h3>Encoding Pipeline</h3>
+    <p>
+      The <code>JEPA.encode()</code> method in <code>jepa.py</code> chains the encoder and projector.
+      Video frames are flattened along the batch&thinsp;&times;&thinsp;time axis for the ViT, then reshaped back.
+      Only the CLS token from the last hidden state is kept.
+    </p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">Python</span>
+        <span class="code-file">jepa.py:29&ndash;45</span>
+      </div>
+      <pre><span class="kw">def</span> <span class="fn">encode</span>(<span class="var">self</span>, <span class="var">info</span>):
+    <span class="var">pixels</span> <span class="op">=</span> <span class="var">info</span>[<span class="str">'pixels'</span>].<span class="fn">float</span>()
+    <span class="var">b</span> <span class="op">=</span> <span class="var">pixels</span>.<span class="fn">size</span>(<span class="num">0</span>)
+
+    <span class="var">pixels</span> <span class="op">=</span> <span class="fn">rearrange</span>(<span class="var">pixels</span>, <span class="str">"b t ... -> (b t) ..."</span>)
+    <span class="var">output</span> <span class="op">=</span> <span class="var">self</span>.<span class="var">encoder</span>(<span class="var">pixels</span>, <span class="arg">interpolate_pos_encoding</span><span class="op">=</span><span class="num">True</span>)
+    <span class="var">pixels_emb</span> <span class="op">=</span> <span class="var">output</span>.<span class="var">last_hidden_state</span>[<span class="op">:</span>, <span class="num">0</span>]  <span class="cmt"># CLS token</span>
+
+    <span class="var">emb</span> <span class="op">=</span> <span class="var">self</span>.<span class="var">projector</span>(<span class="var">pixels_emb</span>)
+    <span class="var">info</span>[<span class="str">"emb"</span>] <span class="op">=</span> <span class="fn">rearrange</span>(<span class="var">emb</span>, <span class="str">"(b t) d -> b t d"</span>, <span class="arg">b</span><span class="op">=</span><span class="var">b</span>)
+    <span class="kw">return</span> <span class="var">info</span></pre>
+    </div>
+
+    <h3>ARPredictor (Training Signal Provider)</h3>
+    <p>
+      The autoregressive predictor is a 6-layer Transformer with <strong>AdaLN-zero conditioning</strong> on action
+      embeddings. It takes a window of past embeddings and predicts the next one. While essential during training
+      (it provides the gradient signal that shapes the representation), the predictor can be discarded if you
+      only need the encoder for downstream tasks.
+    </p>
+
+    <p>
+      The predictor uses <strong>ConditionalBlock</strong> layers where action embeddings modulate attention and
+      feed-forward outputs via learned shift, scale, and gate parameters&thinsp;&mdash;&thinsp;the same mechanism
+      used in DiT (Diffusion Transformers).
+    </p>
+  </section>
+
+  <hr>
+
+  <!-- ═══════════════════════ §3 PREREQUISITES ═══════════════════════ -->
+  <section id="prerequisites" class="reveal">
+    <span class="section-label">03</span>
+    <h2>Prerequisites &amp; Installation</h2>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h4>Create the Python environment</h4>
+        <p>LeWM requires Python 3.10. The project uses <code>uv</code> for fast dependency resolution.</p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">Shell</span>
+          </div>
+          <pre>uv venv --python=3.10
+source .venv/bin/activate</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h4>Install dependencies</h4>
+        <p>
+          The <code>stable-worldmodel</code> package bundles training utilities, data loading, and environment wrappers.
+          The <code>[train,env]</code> extras pull in PyTorch Lightning, Hydra, WandB, and environment dependencies.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">Shell</span>
+          </div>
+          <pre>uv pip install stable-worldmodel[train,env]</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h4>Verify GPU access</h4>
+        <p>Training uses <code>bf16</code> mixed precision, which requires an Ampere-generation GPU or newer (RTX 3000+, A100, H100).</p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">Shell</span>
+          </div>
+          <pre>python -c "import torch; print(torch.cuda.get_device_name())"</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout--info">
+      <div class="callout-label">Dependencies</div>
+      <p>
+        The two core libraries are
+        <a href="https://github.com/galilai-group/stable-worldmodel">stable-worldmodel</a> (environment, planning, evaluation) and
+        <a href="https://github.com/galilai-group/stable-pretraining">stable-pretraining</a> (training harness, data transforms, ViT backbone).
+        Both are installed automatically via the pip command above.
+      </p>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ═══════════════════════ §4 DATA ═══════════════════════ -->
+  <section id="data" class="reveal">
+    <span class="section-label">04</span>
+    <h2>Data Preparation</h2>
+
+    <p>
+      LeWM trains on expert demonstration datasets stored as <strong>HDF5 files</strong>.
+      Each dataset contains sequences of pixel observations, actions, and optional proprioceptive/state information.
+    </p>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h4>Download the data</h4>
+        <p>
+          Grab the dataset archives from the
+          <a href="https://drive.google.com/drive/folders/1r31os0d4-rR0mdHc7OlY_e5nh3XT4r4e?usp=sharing">Google Drive</a>.
+          Available tasks: <strong>PushT</strong>, <strong>TwoRoom</strong>, <strong>Reacher</strong> (DMControl), <strong>Cube</strong> (OGBench).
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">Shell</span>
+          </div>
+          <pre>tar --zstd -xvf archive.tar.zst</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h4>Place files under <code>$STABLEWM_HOME</code></h4>
+        <p>
+          The data loader resolves dataset names relative to this directory.
+          The default is <code>~/.stable-wm/</code>.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">Shell</span>
+          </div>
+          <pre><span class="cmt"># Optional: override the default location</span>
+export STABLEWM_HOME=/path/to/your/data
+
+<span class="cmt"># Move datasets into place</span>
+mv pusht_expert_train.h5 $STABLEWM_HOME/
+mv reacher.h5 $STABLEWM_HOME/</pre>
+        </div>
+      </div>
+    </div>
+
+    <h3>Dataset Configuration</h3>
+    <p>
+      Each task has its own YAML config under <code>config/train/data/</code>.
+      Here is the PushT config as a representative example:
+    </p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">YAML</span>
+        <span class="code-file">config/train/data/pusht.yaml</span>
+      </div>
+      <pre><span class="var">dataset</span>:
+  <span class="arg">num_steps</span>: <span class="num">${eval:'${wm.num_preds} + ${wm.history_size}'}</span>  <span class="cmt"># 1 + 3 = 4</span>
+  <span class="arg">frameskip</span>: <span class="num">5</span>          <span class="cmt"># Sample every 5th frame</span>
+  <span class="arg">name</span>: <span class="str">pusht_expert_train</span>  <span class="cmt"># Resolves to $STABLEWM_HOME/pusht_expert_train.h5</span>
+  <span class="arg">keys_to_load</span>:
+    - <span class="str">pixels</span>             <span class="cmt"># RGB frames</span>
+    - <span class="str">action</span>             <span class="cmt"># Agent actions</span>
+    - <span class="str">proprio</span>            <span class="cmt"># Proprioceptive state</span>
+    - <span class="str">state</span>              <span class="cmt"># Full environment state</span>
+  <span class="arg">keys_to_cache</span>:
+    - <span class="str">action</span>
+    - <span class="str">proprio</span>
+    - <span class="str">state</span></pre>
+    </div>
+
+    <h3>Preprocessing Pipeline</h3>
+    <p>
+      Before training, the data passes through two automatic transforms defined in <code>utils.py</code>:
+    </p>
+
+    <div class="dual-col">
+      <div>
+        <h4>Image Preprocessing</h4>
+        <p>
+          Pixel frames are converted to tensors, normalized with ImageNet statistics
+          (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]), and resized to 224&times;224.
+        </p>
+      </div>
+      <div>
+        <h4>Column Normalization</h4>
+        <p>
+          Non-pixel columns (action, proprio, state) are z-score normalized:
+          <code>(x - mean) / std</code>, computed over the full dataset with NaN values excluded.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ═══════════════════════ §5 CONFIG ═══════════════════════ -->
+  <section id="config" class="reveal">
+    <span class="section-label">05</span>
+    <h2>Configuration Reference</h2>
+
+    <p>
+      All training parameters are set via Hydra YAML configs. The main config at
+      <code>config/train/lewm.yaml</code> defines the full training recipe.
+      Below is every parameter grouped by function.
+    </p>
+
+    <h3>Architecture</h3>
+    <table class="config-table">
+      <thead>
+        <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>encoder_scale</code></td>
+          <td><code>tiny</code></td>
+          <td>ViT variant. Controls hidden dimension and number of transformer layers.</td>
+        </tr>
+        <tr>
+          <td><code>img_size</code></td>
+          <td><code>224</code></td>
+          <td>Input image resolution. All frames are resized to this.</td>
+        </tr>
+        <tr>
+          <td><code>patch_size</code></td>
+          <td><code>14</code></td>
+          <td>ViT patch size. 224/14 = 16&times;16 = 256 patches per frame.</td>
+        </tr>
+        <tr>
+          <td><code>wm.embed_dim</code></td>
+          <td><code>192</code></td>
+          <td>Representation dimensionality. The output space of the projector.</td>
+        </tr>
+        <tr>
+          <td><code>wm.history_size</code></td>
+          <td><code>3</code></td>
+          <td>Number of context frames for the predictor.</td>
+        </tr>
+        <tr>
+          <td><code>wm.num_preds</code></td>
+          <td><code>1</code></td>
+          <td>Number of future frames to predict.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Predictor Transformer</h3>
+    <table class="config-table">
+      <thead>
+        <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>predictor.depth</code></td>
+          <td><code>6</code></td>
+          <td>Number of ConditionalBlock transformer layers.</td>
+        </tr>
+        <tr>
+          <td><code>predictor.heads</code></td>
+          <td><code>16</code></td>
+          <td>Number of attention heads.</td>
+        </tr>
+        <tr>
+          <td><code>predictor.dim_head</code></td>
+          <td><code>64</code></td>
+          <td>Dimension per attention head. Inner dim = 16&times;64 = 1024.</td>
+        </tr>
+        <tr>
+          <td><code>predictor.mlp_dim</code></td>
+          <td><code>2048</code></td>
+          <td>Feed-forward hidden dimension in each block.</td>
+        </tr>
+        <tr>
+          <td><code>predictor.dropout</code></td>
+          <td><code>0.1</code></td>
+          <td>Dropout rate in attention and feed-forward layers.</td>
+        </tr>
+        <tr>
+          <td><code>predictor.emb_dropout</code></td>
+          <td><code>0.0</code></td>
+          <td>Dropout on positional embeddings.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Training</h3>
+    <table class="config-table">
+      <thead>
+        <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>trainer.max_epochs</code></td>
+          <td><code>100</code></td>
+          <td>Total training epochs.</td>
+        </tr>
+        <tr>
+          <td><code>trainer.precision</code></td>
+          <td><code>bf16</code></td>
+          <td>Mixed precision. Requires Ampere+ GPU.</td>
+        </tr>
+        <tr>
+          <td><code>trainer.gradient_clip_val</code></td>
+          <td><code>1.0</code></td>
+          <td>Global gradient norm clipping threshold.</td>
+        </tr>
+        <tr>
+          <td><code>loader.batch_size</code></td>
+          <td><code>128</code></td>
+          <td>Training batch size.</td>
+        </tr>
+        <tr>
+          <td><code>optimizer.type</code></td>
+          <td><code>AdamW</code></td>
+          <td>Optimizer class.</td>
+        </tr>
+        <tr>
+          <td><code>optimizer.lr</code></td>
+          <td><code>5e-5</code></td>
+          <td>Peak learning rate.</td>
+        </tr>
+        <tr>
+          <td><code>optimizer.weight_decay</code></td>
+          <td><code>1e-3</code></td>
+          <td>L2 regularization strength.</td>
+        </tr>
+        <tr>
+          <td><code>seed</code></td>
+          <td><code>3072</code></td>
+          <td>Random seed for reproducibility.</td>
+        </tr>
+        <tr>
+          <td><code>train_split</code></td>
+          <td><code>0.9</code></td>
+          <td>Fraction of data for training (rest is validation).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>SIGReg Loss</h3>
+    <table class="config-table">
+      <thead>
+        <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>loss.sigreg.weight</code></td>
+          <td><code>0.09</code></td>
+          <td>The single loss hyperparameter &lambda;. Balances prediction vs. regularization.</td>
+        </tr>
+        <tr>
+          <td><code>loss.sigreg.kwargs.knots</code></td>
+          <td><code>17</code></td>
+          <td>Number of integration points from 0 to 3 for the characteristic function test.</td>
+        </tr>
+        <tr>
+          <td><code>loss.sigreg.kwargs.num_proj</code></td>
+          <td><code>1024</code></td>
+          <td>Number of random projection directions for the sliced statistic.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout--warn">
+      <div class="callout-label">WandB Setup</div>
+      <p>
+        Before training, edit <code>config/train/lewm.yaml</code> to set your WandB credentials:
+      </p>
+      <div class="code-block" style="margin-bottom: 0;">
+        <div class="code-header">
+          <span class="code-lang">YAML</span>
+        </div>
+        <pre><span class="var">wandb</span>:
+  <span class="arg">enabled</span>: <span class="num">True</span>     <span class="cmt"># Set to False to disable logging</span>
+  <span class="var">config</span>:
+    <span class="arg">entity</span>: <span class="str">your_entity</span>
+    <span class="arg">project</span>: <span class="str">your_project</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ═══════════════════════ §6 LOSSES ═══════════════════════ -->
+  <section id="losses" class="reveal">
+    <span class="section-label">06</span>
+    <h2>The Two Losses</h2>
+
+    <p>
+      LeWM's stability comes from using exactly two loss terms with a single balancing coefficient.
+      This is what makes training tractable on a single GPU without pretrained encoders or EMA targets.
+    </p>
+
+    <div class="math-block">
+      <span class="math-fn">L</span> <span class="math-eq">=</span>
+      <span class="math-fn">L</span><sub><span class="math-var">pred</span></sub>
+      <span class="math-op">+</span>
+      <span class="math-var">&lambda;</span>
+      <span class="math-op">&middot;</span>
+      <span class="math-fn">L</span><sub><span class="math-var">SIGReg</span></sub>
+      &emsp;&emsp;&emsp;
+      <span class="math-var">&lambda;</span> <span class="math-eq">=</span> <span class="math-fn">0.09</span>
+    </div>
+
+    <h3>Loss 1: Prediction MSE</h3>
+    <p>
+      The prediction loss measures how well the predictor can forecast the next embedding from a context
+      window of past embeddings and actions. This is what forces the encoder to produce <em>predictively useful</em>
+      representations&thinsp;&mdash;&thinsp;if the embedding discards information needed to predict the future, this loss increases.
+    </p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">Python</span>
+        <span class="code-file">train.py:33&ndash;40</span>
+      </div>
+      <pre><span class="var">ctx_emb</span> <span class="op">=</span> <span class="var">emb</span>[<span class="op">:</span>, <span class="op">:</span><span class="var">ctx_len</span>]          <span class="cmt"># First 3 frames</span>
+<span class="var">ctx_act</span> <span class="op">=</span> <span class="var">act_emb</span>[<span class="op">:</span>, <span class="op">:</span><span class="var">ctx_len</span>]      <span class="cmt"># Corresponding actions</span>
+
+<span class="var">tgt_emb</span> <span class="op">=</span> <span class="var">emb</span>[<span class="op">:</span>, <span class="var">n_preds</span><span class="op">:</span>]          <span class="cmt"># Shifted by 1 step (ground truth)</span>
+<span class="var">pred_emb</span> <span class="op">=</span> <span class="var">self</span>.<span class="var">model</span>.<span class="fn">predict</span>(<span class="var">ctx_emb</span>, <span class="var">ctx_act</span>)
+
+<span class="var">output</span>[<span class="str">"pred_loss"</span>] <span class="op">=</span> (<span class="var">pred_emb</span> <span class="op">-</span> <span class="var">tgt_emb</span>).<span class="fn">pow</span>(<span class="num">2</span>).<span class="fn">mean</span>()</pre>
+    </div>
+
+    <p>
+      With <code>history_size=3</code> and <code>num_preds=1</code>, each training sample contains 4 frames.
+      The first 3 frames (plus their actions) form the context; the 4th frame's embedding is the prediction target.
+    </p>
+
+    <h3>Loss 2: SIGReg (Sketch Isotropic Gaussian Regularizer)</h3>
+    <p>
+      SIGReg prevents <strong>representation collapse</strong>&thinsp;&mdash;&thinsp;the failure mode where all inputs map to the same
+      embedding. It works by testing whether the empirical distribution of embeddings matches a standard Gaussian
+      <em>N(0, I)</em> along many random projection directions.
+    </p>
+
+    <div class="callout callout--key">
+      <div class="callout-label">How SIGReg Works</div>
+      <p>
+        The <strong>characteristic function</strong> of a Gaussian is
+        <code>&phi;(t) = exp(-t&sup2;/2)</code>. SIGReg projects the embedding batch onto 1024 random unit vectors,
+        computes the empirical characteristic function along each direction, and measures how far it deviates from the
+        Gaussian reference. The error is integrated over <em>t</em> &isin; [0, 3] using a trapezoidal rule with Gaussian
+        weighting.
+      </p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">Python</span>
+        <span class="code-file">module.py:10&ndash;36</span>
+      </div>
+      <pre><span class="kw">class</span> <span class="cls">SIGReg</span>(<span class="cls">torch.nn.Module</span>):
+    <span class="str">"""Sketch Isotropic Gaussian Regularizer (single-GPU!)"""</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="var">self</span>, <span class="arg">knots</span><span class="op">=</span><span class="num">17</span>, <span class="arg">num_proj</span><span class="op">=</span><span class="num">1024</span>):
+        <span class="var">t</span> <span class="op">=</span> <span class="fn">torch.linspace</span>(<span class="num">0</span>, <span class="num">3</span>, <span class="var">knots</span>)
+        <span class="var">window</span> <span class="op">=</span> <span class="fn">torch.exp</span>(<span class="op">-</span><span class="var">t</span>.<span class="fn">square</span>() <span class="op">/</span> <span class="num">2.0</span>)
+        <span class="cmt"># Trapezoidal integration weights, Gaussian-windowed</span>
+        <span class="var">self</span>.<span class="fn">register_buffer</span>(<span class="str">"phi"</span>, <span class="var">window</span>)
+        <span class="var">self</span>.<span class="fn">register_buffer</span>(<span class="str">"weights"</span>, <span class="var">weights</span> <span class="op">*</span> <span class="var">window</span>)
+
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="var">self</span>, <span class="var">proj</span>):   <span class="cmt"># proj: (T, B, D)</span>
+        <span class="cmt"># 1. Random unit projection vectors</span>
+        <span class="var">A</span> <span class="op">=</span> <span class="fn">torch.randn</span>(<span class="var">proj</span>.<span class="fn">size</span>(<span class="op">-</span><span class="num">1</span>), <span class="var">self</span>.<span class="var">num_proj</span>)
+        <span class="var">A</span> <span class="op">=</span> <span class="var">A</span>.<span class="fn">div_</span>(<span class="var">A</span>.<span class="fn">norm</span>(<span class="arg">p</span><span class="op">=</span><span class="num">2</span>, <span class="arg">dim</span><span class="op">=</span><span class="num">0</span>))
+
+        <span class="cmt"># 2. Compute empirical vs. Gaussian characteristic function error</span>
+        <span class="var">x_t</span> <span class="op">=</span> (<span class="var">proj</span> <span class="op">@</span> <span class="var">A</span>).<span class="fn">unsqueeze</span>(<span class="op">-</span><span class="num">1</span>) <span class="op">*</span> <span class="var">self</span>.<span class="var">t</span>
+        <span class="var">err</span> <span class="op">=</span> (<span class="var">x_t</span>.<span class="fn">cos</span>().<span class="fn">mean</span>(<span class="op">-</span><span class="num">3</span>) <span class="op">-</span> <span class="var">self</span>.<span class="var">phi</span>).<span class="fn">square</span>() \
+             <span class="op">+</span> <span class="var">x_t</span>.<span class="fn">sin</span>().<span class="fn">mean</span>(<span class="op">-</span><span class="num">3</span>).<span class="fn">square</span>()
+
+        <span class="cmt"># 3. Integrate with Gaussian-weighted trapezoidal rule</span>
+        <span class="var">statistic</span> <span class="op">=</span> (<span class="var">err</span> <span class="op">@</span> <span class="var">self</span>.<span class="var">weights</span>) <span class="op">*</span> <span class="var">proj</span>.<span class="fn">size</span>(<span class="op">-</span><span class="num">2</span>)
+        <span class="kw">return</span> <span class="var">statistic</span>.<span class="fn">mean</span>()</pre>
+    </div>
+
+    <h3>Why Only Two Losses?</h3>
+    <p>
+      Previous end-to-end JEPAs (like PLDM) require <strong>six loss terms</strong>: prediction, variance,
+      covariance, attention entropy, capacity, and contrastive losses. Each introduces a hyperparameter.
+      LeWM replaces all of these with the single SIGReg term, which implicitly enforces variance, isotropy,
+      and non-collapse. The only hyperparameter is <code>&lambda; = 0.09</code>.
+    </p>
+  </section>
+
+  <hr>
+
+  <!-- ═══════════════════════ §7 TRAINING ═══════════════════════ -->
+  <section id="training" class="reveal">
+    <span class="section-label">07</span>
+    <h2>Launching Training</h2>
+
+    <h3>Basic Launch</h3>
+    <p>
+      Training is a single command. Hydra resolves all configs and the <code>data=</code> override
+      selects which dataset config to load.
+    </p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">Shell</span>
+      </div>
+      <pre><span class="cmt"># Train on PushT (2D manipulation)</span>
+python train.py data=pusht
+
+<span class="cmt"># Train on DMControl Reacher (3D control)</span>
+python train.py data=dmc
+
+<span class="cmt"># Train on TwoRoom (2D navigation)</span>
+python train.py data=tworoom
+
+<span class="cmt"># Train on OGBench Cube (3D manipulation)</span>
+python train.py data=ogb</pre>
+    </div>
+
+    <h3>Overriding Parameters</h3>
+    <p>
+      Any YAML parameter can be overridden at the command line via Hydra syntax:
+    </p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">Shell</span>
+      </div>
+      <pre><span class="cmt"># Custom embedding dimension and learning rate</span>
+python train.py data=pusht wm.embed_dim=256 optimizer.lr=1e-4
+
+<span class="cmt"># Larger batch size, fewer epochs</span>
+python train.py data=pusht loader.batch_size=256 trainer.max_epochs=50
+
+<span class="cmt"># Disable WandB logging</span>
+python train.py data=pusht wandb.enabled=False
+
+<span class="cmt"># Change the SIGReg weight</span>
+python train.py data=pusht loss.sigreg.weight=0.05
+
+<span class="cmt"># Use a different random seed</span>
+python train.py data=pusht seed=42</pre>
+    </div>
+
+    <h3>What Happens During Training</h3>
+    <p>Under the hood, each training step executes this sequence:</p>
+
+    <div class="arch-diagram">
+      <svg width="780" height="340" viewBox="0 0 780 340" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Background grid dots -->
+        <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+          <circle cx="2" cy="2" r="0.8" fill="#1e293b"/>
+        </pattern>
+        <rect width="780" height="340" fill="url(#dots)"/>
+
+        <!-- Step 1: Load batch -->
+        <rect x="16" y="20" width="140" height="56" rx="8" fill="#111827" stroke="#1e293b"/>
+        <text x="86" y="43" text-anchor="middle" fill="#94a3b8" font-family="Syne" font-size="11" font-weight="600">LOAD BATCH</text>
+        <text x="86" y="60" text-anchor="middle" fill="#64748b" font-family="Source Code Pro" font-size="10">(B, 4, 3, 224, 224)</text>
+
+        <!-- Arrow -->
+        <line x1="156" y1="48" x2="182" y2="48" stroke="#b45309" stroke-width="1.5"/>
+        <polygon points="182,44 190,48 182,52" fill="#b45309"/>
+
+        <!-- Step 2: Encode -->
+        <rect x="192" y="20" width="130" height="56" rx="8" fill="#111827" stroke="#f59e0b" stroke-width="1.5"/>
+        <text x="257" y="43" text-anchor="middle" fill="#f59e0b" font-family="Syne" font-size="11" font-weight="600">ViT + PROJECTOR</text>
+        <text x="257" y="60" text-anchor="middle" fill="#64748b" font-family="Source Code Pro" font-size="10">encode(batch)</text>
+
+        <!-- Arrow -->
+        <line x1="322" y1="48" x2="348" y2="48" stroke="#b45309" stroke-width="1.5"/>
+        <polygon points="348,44 356,48 348,52" fill="#b45309"/>
+
+        <!-- Step 3: Embeddings -->
+        <rect x="358" y="20" width="130" height="56" rx="8" fill="#111827" stroke="#34d399" stroke-width="1.5"/>
+        <text x="423" y="43" text-anchor="middle" fill="#34d399" font-family="Syne" font-size="11" font-weight="600">EMBEDDINGS</text>
+        <text x="423" y="60" text-anchor="middle" fill="#64748b" font-family="Source Code Pro" font-size="10">(B, 4, 192)</text>
+
+        <!-- Two paths from embeddings -->
+        <!-- Path A: Predict -->
+        <line x1="423" y1="76" x2="423" y2="110" stroke="#1e293b" stroke-width="1.5"/>
+
+        <!-- Split into context + target label -->
+        <line x1="423" y1="110" x2="260" y2="110" stroke="#1e293b" stroke-width="1.5"/>
+        <line x1="423" y1="110" x2="590" y2="110" stroke="#1e293b" stroke-width="1.5"/>
+
+        <!-- Context path -->
+        <line x1="260" y1="110" x2="260" y2="130" stroke="#1e293b" stroke-width="1.5"/>
+        <polygon points="256,130 260,138 264,130" fill="#1e293b"/>
+        <rect x="190" y="140" width="140" height="56" rx="8" fill="#111827" stroke="#1e293b"/>
+        <text x="260" y="161" text-anchor="middle" fill="#94a3b8" font-family="Syne" font-size="11" font-weight="600">CONTEXT (3 frames)</text>
+        <text x="260" y="178" text-anchor="middle" fill="#64748b" font-family="Source Code Pro" font-size="10">emb[:, :3] + act[:, :3]</text>
+
+        <!-- Target path -->
+        <line x1="590" y1="110" x2="590" y2="130" stroke="#1e293b" stroke-width="1.5"/>
+        <polygon points="586,130 590,138 594,130" fill="#1e293b"/>
+        <rect x="520" y="140" width="140" height="56" rx="8" fill="#111827" stroke="#1e293b"/>
+        <text x="590" y="161" text-anchor="middle" fill="#94a3b8" font-family="Syne" font-size="11" font-weight="600">TARGET</text>
+        <text x="590" y="178" text-anchor="middle" fill="#64748b" font-family="Source Code Pro" font-size="10">emb[:, 1:]</text>
+
+        <!-- Context -> ARPredictor -->
+        <line x1="260" y1="196" x2="260" y2="216" stroke="#1e293b" stroke-width="1.5"/>
+        <polygon points="256,216 260,224 264,216" fill="#1e293b"/>
+        <rect x="180" y="226" width="160" height="56" rx="8" fill="#111827" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="260" y="249" text-anchor="middle" fill="#22d3ee" font-family="Syne" font-size="11" font-weight="600">ARPREDICTOR</text>
+        <text x="260" y="266" text-anchor="middle" fill="#64748b" font-family="Source Code Pro" font-size="10">6L Transformer + AdaLN</text>
+
+        <!-- ARPredictor -> Prediction Loss -->
+        <line x1="340" y1="254" x2="460" y2="254" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="4,4"/>
+        <line x1="590" y1="196" x2="590" y2="254" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="4,4"/>
+        <line x1="590" y1="254" x2="540" y2="254" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="4,4"/>
+        <rect x="460" y="234" width="80" height="40" rx="8" fill="#111827" stroke="#f43f5e" stroke-width="1.5"/>
+        <text x="500" y="259" text-anchor="middle" fill="#f43f5e" font-family="Syne" font-size="11" font-weight="700">MSE</text>
+
+        <!-- SIGReg path - from embeddings box -->
+        <line x1="488" y1="48" x2="540" y2="48" stroke="#1e293b" stroke-width="1.5"/>
+        <line x1="540" y1="48" x2="540" y2="28" stroke="#1e293b" stroke-width="1.5"/>
+        <polygon points="536,28 540,20 544,28" fill="#1e293b"/>
+
+        <!-- SIGReg label at top right -->
+        <rect x="620" y="20" width="140" height="56" rx="8" fill="#111827" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="690" y="43" text-anchor="middle" fill="#a78bfa" font-family="Syne" font-size="11" font-weight="600">SIGREG</text>
+        <text x="690" y="60" text-anchor="middle" fill="#64748b" font-family="Source Code Pro" font-size="10">&rarr; N(0, I) test</text>
+        <line x1="540" y1="48" x2="618" y2="48" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4,4"/>
+
+        <!-- Total Loss -->
+        <rect x="430" y="296" width="200" height="36" rx="8" fill="#0d1220" stroke="#f59e0b" stroke-width="2"/>
+        <text x="530" y="319" text-anchor="middle" fill="#f59e0b" font-family="Syne" font-size="12" font-weight="700">L = L_pred + 0.09 &middot; L_SIGReg</text>
+
+        <!-- Connecting losses to total -->
+        <line x1="500" y1="274" x2="500" y2="296" stroke="#f59e0b" stroke-width="1.5"/>
+        <line x1="690" y1="76" x2="690" y2="308" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4,4"/>
+        <line x1="690" y1="308" x2="632" y2="308" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4,4"/>
+      </svg>
+    </div>
+
+    <h3>Learning Rate Schedule</h3>
+    <p>
+      The optimizer uses <strong>Linear Warmup + Cosine Annealing</strong>. Learning rate ramps up linearly
+      during the first few epochs, then follows a cosine decay to near zero. This is handled automatically
+      by the <code>LinearWarmupCosineAnnealingLR</code> scheduler from <code>stable-pretraining</code>.
+    </p>
+  </section>
+
+  <hr>
+
+  <!-- ═══════════════════════ §8 MONITORING ═══════════════════════ -->
+  <section id="monitoring" class="reveal">
+    <span class="section-label">08</span>
+    <h2>Monitoring &amp; Checkpoints</h2>
+
+    <h3>WandB Metrics</h3>
+    <p>
+      Three metrics are logged every training step. Here is what to watch:
+    </p>
+
+    <table class="config-table">
+      <thead>
+        <tr><th>Metric</th><th>What It Tells You</th><th>Healthy Range</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>train/loss</code></td>
+          <td>Combined training loss. Should decrease steadily.</td>
+          <td>Task-dependent; decreasing trend is key.</td>
+        </tr>
+        <tr>
+          <td><code>train/pred_loss</code></td>
+          <td>Prediction MSE. Measures embedding predictability.</td>
+          <td>Should decrease. Plateaus indicate good representation.</td>
+        </tr>
+        <tr>
+          <td><code>train/sigreg_loss</code></td>
+          <td>Gaussianity of embeddings. Lower = more Gaussian.</td>
+          <td>Should stay small and stable. Spikes indicate collapse risk.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout--warn">
+      <div class="callout-label">Collapse Detection</div>
+      <p>
+        If <code>pred_loss</code> drops to near zero while <code>sigreg_loss</code> spikes, the representation
+        is collapsing&thinsp;&mdash;&thinsp;all inputs are mapping to similar embeddings, making prediction trivially easy.
+        Increase <code>loss.sigreg.weight</code> if you see this pattern.
+      </p>
+    </div>
+
+    <h3>Checkpoint Format</h3>
+    <p>
+      The <code>ModelObjectCallBack</code> saves two types of checkpoints to <code>$STABLEWM_HOME/{run_id}/</code>
+      after every epoch:
+    </p>
+
+    <div class="dual-col">
+      <div>
+        <h4 style="color: var(--accent-amber);">{name}_object.ckpt</h4>
+        <p>
+          Serialized Python object (the full <code>JEPA</code> module). Used by <code>eval.py</code> and
+          <code>swm.policy.AutoCostModel()</code> for direct inference. Convenient but less portable.
+        </p>
+      </div>
+      <div>
+        <h4 style="color: var(--accent-cyan);">{name}_weights.ckpt</h4>
+        <p>
+          State dict only (<code>model.state_dict()</code>). Load into your own model instance for
+          downstream tasks. Better for reproducibility, portability, and fine-tuning.
+        </p>
+      </div>
+    </div>
+
+    <h3>Loading a Trained Encoder</h3>
+    <p>
+      After training, you can load the encoder for downstream use:
+    </p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">Python</span>
+      </div>
+      <pre><span class="kw">import</span> <span class="var">torch</span>
+<span class="kw">import</span> <span class="var">stable_worldmodel</span> <span class="kw">as</span> <span class="var">swm</span>
+
+<span class="cmt"># Option 1: Load the full model via stable-worldmodel API</span>
+<span class="var">model</span> <span class="op">=</span> <span class="fn">swm.policy.AutoCostModel</span>(<span class="str">'pusht/lewm'</span>)
+
+<span class="cmt"># Option 2: Load the pickled object directly</span>
+<span class="var">jepa</span> <span class="op">=</span> <span class="fn">torch.load</span>(<span class="str">'path/to/lewm_epoch_100_object.ckpt'</span>)
+<span class="var">encoder</span> <span class="op">=</span> <span class="var">jepa</span>.<span class="var">encoder</span>      <span class="cmt"># ViT backbone</span>
+<span class="var">projector</span> <span class="op">=</span> <span class="var">jepa</span>.<span class="var">projector</span>  <span class="cmt"># MLP head</span>
+
+<span class="cmt"># Extract embeddings from a frame</span>
+<span class="var">jepa</span>.<span class="fn">eval</span>()
+<span class="kw">with</span> <span class="fn">torch.no_grad</span>():
+    <span class="var">info</span> <span class="op">=</span> <span class="var">jepa</span>.<span class="fn">encode</span>({<span class="str">"pixels"</span>: <span class="var">frames</span>})
+    <span class="var">embeddings</span> <span class="op">=</span> <span class="var">info</span>[<span class="str">"emb"</span>]  <span class="cmt"># (B, T, 192)</span></pre>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ═══════════════════════ §9 CODE MAP ═══════════════════════ -->
+  <section id="coderef" class="reveal">
+    <span class="section-label">09</span>
+    <h2>Source Code Map</h2>
+
+    <p>The entire codebase fits in five Python files plus configs. Here is where each piece lives.</p>
+
+    <div class="file-tree">
+<span class="dir">le-wm/</span>
+├── <span class="file file--main">train.py</span>        <span class="annotation">Training entry point &amp; forward pass</span>
+│   ├── <span class="annotation">lejepa_forward()  &mdash; encode, predict, compute losses</span>
+│   └── <span class="annotation">run()             &mdash; data loading, model init, training loop</span>
+│
+├── <span class="file file--main">jepa.py</span>         <span class="annotation">JEPA module (encode, predict, rollout, cost)</span>
+│   └── <span class="annotation">JEPA class         &mdash; wires encoder + predictor + projectors</span>
+│
+├── <span class="file file--main">module.py</span>       <span class="annotation">All neural network components</span>
+│   ├── <span class="annotation">SIGReg            &mdash; Gaussian regularization loss</span>
+│   ├── <span class="annotation">Attention          &mdash; scaled dot-product with causal masking</span>
+│   ├── <span class="annotation">ConditionalBlock   &mdash; Transformer block with AdaLN-zero</span>
+│   ├── <span class="annotation">ARPredictor        &mdash; autoregressive next-embedding predictor</span>
+│   ├── <span class="annotation">MLP                &mdash; projector head</span>
+│   └── <span class="annotation">Embedder           &mdash; action encoder (Conv1d + MLP)</span>
+│
+├── <span class="file file--main">utils.py</span>        <span class="annotation">Preprocessing &amp; callbacks</span>
+│   ├── <span class="annotation">get_img_preprocessor()    &mdash; ImageNet norm + resize</span>
+│   ├── <span class="annotation">get_column_normalizer()   &mdash; z-score normalization</span>
+│   └── <span class="annotation">ModelObjectCallBack       &mdash; checkpoint saving</span>
+│
+└── <span class="dir">config/train/</span>
+    ├── <span class="file file--cfg">lewm.yaml</span>   <span class="annotation">Main training config (all hyperparameters)</span>
+    └── <span class="dir">data/</span>
+        ├── <span class="file file--cfg">pusht.yaml</span>    <span class="annotation">PushT dataset config</span>
+        ├── <span class="file file--cfg">dmc.yaml</span>      <span class="annotation">DMControl Reacher config</span>
+        ├── <span class="file file--cfg">tworoom.yaml</span>  <span class="annotation">TwoRoom config</span>
+        └── <span class="file file--cfg">ogb.yaml</span>      <span class="annotation">OGBench Cube config</span>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ═══════════════════════ §10 ADVANCED ═══════════════════════ -->
+  <section id="advanced" class="reveal">
+    <span class="section-label">10</span>
+    <h2>Advanced Tuning</h2>
+
+    <h3>Adjusting the Representation Dimension</h3>
+    <p>
+      The default <code>embed_dim=192</code> produces compact representations. For tasks that require
+      richer state information, increase this:
+    </p>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">Shell</span></div>
+      <pre>python train.py data=pusht wm.embed_dim=384</pre>
+    </div>
+    <p>
+      This affects the projector output, predictor input, and action encoder output dimensions simultaneously.
+      Larger embeddings capture more detail but may be harder to regularize.
+    </p>
+
+    <h3>Tuning the SIGReg Weight</h3>
+    <p>
+      The <code>&lambda;</code> parameter is the only loss hyperparameter to tune. The default <code>0.09</code> works
+      well across tasks. Guidelines:
+    </p>
+    <ul>
+      <li><strong>Too low</strong> (&lt;0.01): risk of collapse. Prediction loss can cheat by shrinking the embedding space.</li>
+      <li><strong>Too high</strong> (&gt;0.5): embeddings become random-like. Prediction loss has no room to shape structure.</li>
+      <li><strong>Sweet spot</strong> (0.05&ndash;0.15): both losses can coexist. The representation is informative <em>and</em> well-distributed.</li>
+    </ul>
+
+    <h3>Scaling the Encoder</h3>
+    <p>
+      The <code>encoder_scale</code> parameter accepts standard ViT sizes. Larger encoders may improve representation
+      quality at the cost of training time and memory:
+    </p>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">Shell</span></div>
+      <pre><span class="cmt"># ViT-small (~22M params)</span>
+python train.py data=pusht encoder_scale=small
+
+<span class="cmt"># ViT-base (~86M params) - needs more GPU memory</span>
+python train.py data=pusht encoder_scale=base</pre>
+    </div>
+
+    <h3>Custom Dataset Integration</h3>
+    <p>
+      To train on your own data, create an HDF5 file with these columns and a matching YAML config:
+    </p>
+
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">YAML</span><span class="code-file">config/train/data/my_task.yaml</span></div>
+      <pre><span class="var">dataset</span>:
+  <span class="arg">num_steps</span>: <span class="num">${eval:'${wm.num_preds} + ${wm.history_size}'}</span>
+  <span class="arg">frameskip</span>: <span class="num">1</span>              <span class="cmt"># Adjust to your frame rate</span>
+  <span class="arg">name</span>: <span class="str">my_dataset</span>          <span class="cmt"># Will look for $STABLEWM_HOME/my_dataset.h5</span>
+  <span class="arg">keys_to_load</span>:
+    - <span class="str">pixels</span>                 <span class="cmt"># Required: RGB video frames</span>
+    - <span class="str">action</span>                 <span class="cmt"># Required: agent actions</span>
+  <span class="arg">keys_to_cache</span>:
+    - <span class="str">action</span></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">Shell</span></div>
+      <pre>python train.py data=my_task</pre>
+    </div>
+
+    <div class="callout callout--success">
+      <div class="callout-label">HDF5 Format Requirements</div>
+      <p>
+        Your HDF5 file must contain episodic data accessible via the <code>stable-worldmodel</code>
+        <code>HDF5Dataset</code> class. Each episode should have a <code>pixels</code> dataset
+        (uint8 images, shape <code>(T, H, W, 3)</code> or <code>(T, 3, H, W)</code>) and an
+        <code>action</code> dataset (float32, shape <code>(T, action_dim)</code>).
+        See the existing datasets for reference formatting.
+      </p>
+    </div>
+
+    <h3>Multi-GPU Training</h3>
+    <p>
+      PyTorch Lightning handles distributed training automatically. Set the number of devices:
+    </p>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">Shell</span></div>
+      <pre><span class="cmt"># Use 4 GPUs with DDP</span>
+python train.py data=pusht trainer.devices=4 trainer.strategy=ddp</pre>
+    </div>
+
+    <div class="callout callout--warn">
+      <div class="callout-label">SIGReg &amp; Multi-GPU</div>
+      <p>
+        The current <code>SIGReg</code> implementation is marked as <strong>single-GPU only</strong>.
+        In multi-GPU setups, the regularizer operates on the local batch, not the global batch. This
+        may require increasing the batch size per GPU or using a synchronized variant.
+      </p>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ═══════════════════════ INTERACTIVE EXPLORATIONS ═══════════════════════ -->
+  <section class="reveal" style="margin-bottom: 48px;">
+    <span class="section-label">Interactive</span>
+    <h2>Explore the Concepts</h2>
+    <p>
+      Dive deeper with interactive, distill.pub-style visualizations that let you
+      drag, slide, and step through each component of the architecture.
+    </p>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px;">
+      <a href="viz/index.html" style="display:flex; align-items:center; gap:10px; padding:14px 18px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-sm); text-decoration:none; transition: border-color 0.2s;">
+        <span style="color:var(--accent-amber); font-family:var(--font-mono); font-size:12px; font-weight:600;">ALL</span>
+        <span style="color:var(--text-primary); font-size:14px;">Full Index</span>
+      </a>
+      <a href="viz/01-patch-tokenization.html" style="display:flex; align-items:center; gap:10px; padding:14px 18px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-sm); text-decoration:none; transition: border-color 0.2s;">
+        <span style="color:var(--accent-amber); font-family:var(--font-mono); font-size:12px; font-weight:600;">01</span>
+        <span style="color:var(--text-primary); font-size:14px;">Patch Tokenization</span>
+      </a>
+      <a href="viz/02-embedding-space.html" style="display:flex; align-items:center; gap:10px; padding:14px 18px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-sm); text-decoration:none; transition: border-color 0.2s;">
+        <span style="color:var(--accent-amber); font-family:var(--font-mono); font-size:12px; font-weight:600;">02</span>
+        <span style="color:var(--text-primary); font-size:14px;">Embedding Space &amp; SIGReg</span>
+      </a>
+      <a href="viz/03-prediction.html" style="display:flex; align-items:center; gap:10px; padding:14px 18px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-sm); text-decoration:none; transition: border-color 0.2s;">
+        <span style="color:var(--accent-amber); font-family:var(--font-mono); font-size:12px; font-weight:600;">03</span>
+        <span style="color:var(--text-primary); font-size:14px;">Prediction Pipeline</span>
+      </a>
+      <a href="viz/04-causal-attention.html" style="display:flex; align-items:center; gap:10px; padding:14px 18px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-sm); text-decoration:none; transition: border-color 0.2s;">
+        <span style="color:var(--accent-amber); font-family:var(--font-mono); font-size:12px; font-weight:600;">04</span>
+        <span style="color:var(--text-primary); font-size:14px;">Causal Attention</span>
+      </a>
+      <a href="viz/05-training-dynamics.html" style="display:flex; align-items:center; gap:10px; padding:14px 18px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-sm); text-decoration:none; transition: border-color 0.2s;">
+        <span style="color:var(--accent-amber); font-family:var(--font-mono); font-size:12px; font-weight:600;">05</span>
+        <span style="color:var(--text-primary); font-size:14px;">Training Dynamics</span>
+      </a>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ═══════════════════════ FOOTER ═══════════════════════ -->
+  <footer>
+    <p>
+      <a href="https://arxiv.org/pdf/2603.19312v1">Paper</a> &ensp;&middot;&ensp;
+      <a href="https://le-wm.github.io/">Website</a> &ensp;&middot;&ensp;
+      <a href="https://github.com/lucas-maes/le-wm">GitHub</a> &ensp;&middot;&ensp;
+      <a href="viz/index.html">Interactive Explorations</a>
+    </p>
+    <p style="margin-top: 8px;">
+      Maes, Le Lidec, Scieur, LeCun &amp; Balestriero &ensp;&middot;&ensp; 2026
+    </p>
+  </footer>
+
+</div>
+
+<!-- ═══════════════════════ SCRIPTS ═══════════════════════ -->
+<script>
+  // Reveal on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // Copy buttons
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = btn.closest('.code-block').querySelector('pre').textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = 'Copied';
+        setTimeout(() => btn.textContent = 'Copy', 1500);
+      });
+    });
+  });
+</script>
+
+</body>
+</html>

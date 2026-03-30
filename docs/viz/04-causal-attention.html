@@ -1,0 +1,1913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>04 &mdash; Causal Self-Attention &mdash; LeWM</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Source+Code+Pro:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+
+<style>
+/* ── Design Tokens ── */
+:root {
+  --bg: #faf9f6;
+  --bg-alt: #f3f0eb;
+  --text: #1a1a2e;
+  --text-secondary: #4a4a6a;
+  --text-muted: #8888a0;
+  --accent: #c2402a;
+  --accent-hover: #a03520;
+  --blue: #2563eb;
+  --green: #059669;
+  --violet: #7c3aed;
+  --amber: #d97706;
+  --border: #e0ddd5;
+  --card-shadow: 0 2px 8px rgba(26,26,46,0.06), 0 1px 3px rgba(26,26,46,0.04);
+
+  --font-serif: 'Spectral', Georgia, 'Times New Roman', serif;
+  --font-display: 'Newsreader', 'Spectral', Georgia, serif;
+  --font-mono: 'Source Code Pro', 'Menlo', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: 18px;
+  line-height: 1.78;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Article Container ── */
+.article {
+  max-width: 740px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ── Navigation ── */
+.back-link {
+  display: inline-block;
+  margin-top: 32px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+.back-link:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ── Header ── */
+header {
+  padding: 48px 0 40px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 48px;
+}
+
+.overline {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 14px;
+  display: block;
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--text);
+  margin-bottom: 18px;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 300;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  max-width: 620px;
+}
+
+/* ── Prose ── */
+.prose { margin-bottom: 40px; }
+.prose p {
+  margin-bottom: 18px;
+  color: var(--text-secondary);
+}
+.prose p:last-child { margin-bottom: 0; }
+.prose strong { color: var(--text); font-weight: 500; }
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--bg-alt);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent);
+}
+
+h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+h3 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 500;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+
+/* ── Margin Notes ── */
+.margin-note {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--text-muted);
+  line-height: 1.5;
+  border-left: 2px solid var(--border);
+  padding-left: 14px;
+  margin: 20px 0;
+  font-style: italic;
+}
+
+/* ── Figure Wrappers ── */
+.figure {
+  margin: 36px 0 48px;
+}
+
+.figure-wide {
+  margin-left: -60px;
+  margin-right: -60px;
+}
+
+@media (max-width: 860px) {
+  .figure-wide { margin-left: 0; margin-right: 0; }
+}
+
+.figure-inner {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+}
+
+.figure-canvas-wrap {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+figcaption {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+  line-height: 1.5;
+}
+
+figcaption strong {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* ── Controls ── */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-alt);
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ── Tabs ── */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-alt);
+}
+
+.tab-btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  padding: 12px 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+  position: relative;
+}
+
+.tab-btn:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.5);
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  background: white;
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+
+/* ── Slider ── */
+.slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-alt);
+}
+
+.slider-wrap input[type=range] {
+  -webkit-appearance: none;
+  width: 200px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  outline: none;
+}
+
+.slider-wrap input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.slider-wrap input[type=range]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.slider-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  min-width: 32px;
+}
+
+/* ── Tooltip ── */
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--text);
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+  z-index: 100;
+  opacity: 0;
+  transition: opacity 0.15s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.tooltip.visible { opacity: 1; }
+
+/* ── Hero canvas area ── */
+#hero-wrap {
+  position: relative;
+  width: 100%;
+}
+
+#hero-canvas {
+  display: block;
+  width: 100%;
+  cursor: crosshair;
+}
+
+/* ── Row detail bar chart ── */
+.row-detail {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-alt);
+  display: none;
+}
+
+.row-detail.visible { display: block; }
+
+.row-detail-title {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  height: 80px;
+}
+
+.bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.bar {
+  width: 100%;
+  max-width: 60px;
+  background: var(--blue);
+  border-radius: 3px 3px 0 0;
+  transition: height 0.3s ease;
+  min-height: 2px;
+}
+
+.bar-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.bar-value {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+/* ── Why Causal side-by-side ── */
+.side-by-side {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+@media (max-width: 600px) {
+  .side-by-side { grid-template-columns: 1fr; }
+}
+
+.side-panel {
+  padding: 24px;
+  position: relative;
+}
+
+.side-panel:first-child {
+  border-right: 1px solid var(--border);
+}
+
+@media (max-width: 600px) {
+  .side-panel:first-child {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+.side-panel h3 {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.side-panel h3.text-red { color: var(--accent); }
+.side-panel h3.text-green { color: var(--green); }
+
+.side-panel canvas {
+  display: block;
+  margin: 0 auto 16px;
+}
+
+.side-panel p {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  text-align: center;
+}
+
+/* ── QKV step animation ── */
+.step-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-alt);
+}
+
+.step-indicator {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.step-btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 16px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.step-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.step-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.step-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.step-description {
+  padding: 14px 20px;
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.5);
+  line-height: 1.6;
+  min-height: 60px;
+}
+
+/* ── Multi-head diagram ── */
+#multihead-wrap {
+  position: relative;
+  width: 100%;
+}
+
+#multihead-canvas {
+  display: block;
+  width: 100%;
+  cursor: pointer;
+}
+
+.head-detail-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  padding: 20px;
+  display: none;
+  z-index: 50;
+}
+
+.head-detail-overlay.visible { display: block; }
+
+.head-detail-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border: none;
+  background: none;
+  line-height: 1;
+}
+
+.head-detail-close:hover { color: var(--accent); }
+
+/* ── Footer ── */
+footer {
+  margin: 60px 0 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+</style>
+</head>
+<body>
+
+<div class="article">
+  <a href="index.html" class="back-link">&larr; Back to index</a>
+
+  <header>
+    <span class="overline">LeWM Internals &middot; Part 4</span>
+    <h1>Causal Self-Attention</h1>
+    <p class="subtitle">How the ARPredictor looks backward in time &mdash; never forward &mdash; to predict the next frame embedding from a window of past observations.</p>
+  </header>
+
+  <!-- ── Section 1: Intro ── -->
+  <div class="prose">
+    <p>The ARPredictor processes frame embeddings through <strong>6 layers of self-attention</strong>. But unlike standard transformers in language modeling, here the "tokens" are entire frame embeddings, and the "sequence" is a temporal window of 3&ndash;4 frames. Causal masking ensures predictions can only look backward in time.</p>
+  </div>
+
+  <!-- ── Section 2: Hero Attention Matrix ── -->
+  <h2>Attention Matrix Explorer</h2>
+  <div class="prose">
+    <p>Each attention head learns to focus on different temporal relationships. Some heads attend primarily to the most recent frame, others anchor on the first frame in the context window, and some distribute attention uniformly. Together, the <strong>16 heads</strong> capture a rich set of temporal patterns.</p>
+  </div>
+
+  <div class="figure figure-wide">
+    <figure>
+      <div class="figure-inner">
+        <div class="tab-bar" id="head-tabs">
+          <button class="tab-btn active" data-head="0">Head 1 &middot; Recent focus</button>
+          <button class="tab-btn" data-head="1">Head 2 &middot; First anchor</button>
+          <button class="tab-btn" data-head="2">Head 3 &middot; Uniform</button>
+          <button class="tab-btn" data-head="3">Head 4 &middot; Self-attend</button>
+        </div>
+        <div class="slider-wrap">
+          <span class="control-label">Temperature</span>
+          <input type="range" id="temp-slider" min="0.1" max="3.0" step="0.1" value="1.0">
+          <span class="slider-value" id="temp-value">1.0</span>
+        </div>
+        <div class="figure-canvas-wrap" id="hero-wrap">
+          <canvas id="hero-canvas" width="700" height="520"></canvas>
+          <div class="tooltip" id="hero-tooltip"></div>
+        </div>
+        <div class="row-detail" id="row-detail">
+          <div class="row-detail-title" id="row-detail-title">Click a row to see attention distribution</div>
+          <div class="bar-chart" id="bar-chart"></div>
+        </div>
+      </div>
+      <figcaption><strong>Figure 1.</strong> Attention heatmap for a 4-frame sequence. Upper triangle is masked (causal). Hover cells for weights; click a row to see its softmax distribution. Adjust temperature to see how sharpness changes.</figcaption>
+    </figure>
+  </div>
+
+  <!-- ── Section 3: Why Causal ── -->
+  <h2>Why Causal?</h2>
+  <div class="prose">
+    <p>During training the model sees the full sequence, but it must learn to predict each frame using <strong>only past context</strong>. If it could peek at future frames, the loss would drop but the model would be useless at inference time when future frames don't exist yet. The causal mask prevents this information leak.</p>
+  </div>
+
+  <div class="figure figure-wide">
+    <figure>
+      <div class="figure-inner">
+        <div class="side-by-side">
+          <div class="side-panel">
+            <h3 class="text-red">Full Attention (not used)</h3>
+            <canvas id="full-attn-canvas" width="260" height="220"></canvas>
+            <p>Every position sees every other &mdash; including the future. During training, this would <strong>leak the answer</strong>.</p>
+          </div>
+          <div class="side-panel">
+            <h3 class="text-green">Causal Attention (LeWM)</h3>
+            <canvas id="causal-attn-canvas" width="260" height="220"></canvas>
+            <p>Each position sees only itself and the past. Predictions use only <strong>past information</strong> &mdash; just like at inference.</p>
+          </div>
+        </div>
+      </div>
+      <figcaption><strong>Figure 2.</strong> Hover on a position in either grid to see what it can attend to. Full attention allows peeking at future frames; causal attention prevents this.</figcaption>
+    </figure>
+  </div>
+
+  <!-- ── Section 4: QKV Computation ── -->
+  <h2>Q &middot; K &middot; V Computation</h2>
+  <div class="prose">
+    <p>Scaled dot-product attention computes compatibility scores between queries and keys, then uses those scores to weight a mixture of values. The scaling factor <code>1/&radic;d<sub>head</sub></code> prevents the softmax from saturating when the dimension is large.</p>
+  </div>
+
+  <div class="figure figure-wide">
+    <figure>
+      <div class="figure-inner">
+        <div class="step-controls">
+          <span class="step-indicator" id="step-indicator">Step 1 / 7</span>
+          <div class="step-nav">
+            <button class="step-btn" id="step-prev" disabled>&larr; Prev</button>
+            <button class="step-btn" id="step-next">Next &rarr;</button>
+          </div>
+        </div>
+        <div class="step-description" id="step-desc">
+          <strong>Input embedding x</strong> &mdash; a frame embedding vector enters the attention layer.
+        </div>
+        <div class="figure-canvas-wrap">
+          <canvas id="qkv-canvas" width="860" height="440"></canvas>
+        </div>
+      </div>
+      <figcaption><strong>Figure 3.</strong> Step through scaled dot-product attention for one query position. Each step shows how the input transforms into queries, keys, and values, then computes weighted outputs.</figcaption>
+    </figure>
+  </div>
+
+  <!-- ── Section 5: Multi-Head ── -->
+  <h2>Multi-Head Attention</h2>
+  <div class="prose">
+    <p>In LeWM's ARPredictor, attention operates differently from a standard transformer block: the <code>ConditionalBlock</code> uses <strong>AdaLN-zero</strong>, where the action embedding modulates the normalization parameters before attention is applied. This means the attention pattern itself is influenced by the action taken.</p>
+  </div>
+
+  <div class="figure figure-wide">
+    <figure>
+      <div class="figure-inner">
+        <div class="figure-canvas-wrap" id="multihead-wrap">
+          <canvas id="multihead-canvas" width="860" height="400"></canvas>
+          <div class="tooltip" id="multihead-tooltip"></div>
+          <div class="head-detail-overlay" id="head-detail">
+            <button class="head-detail-close" id="head-detail-close">&times;</button>
+            <canvas id="head-detail-canvas" width="200" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+      <figcaption><strong>Figure 4.</strong> 16 attention heads process the sequence in parallel, each with <code>dim_head=64</code>. Total inner dimension: 16 &times; 64 = 1024. Click any head to see its attention pattern.</figcaption>
+    </figure>
+  </div>
+
+  <footer>
+    LeWM &mdash; Learned World Models
+  </footer>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════════
+const DPR = window.devicePixelRatio || 1;
+
+function setupCanvas(canvas, w, h) {
+  canvas.width = w * DPR;
+  canvas.height = h * DPR;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(DPR, DPR);
+  return ctx;
+}
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function softmax(logits, temp) {
+  const scaled = logits.map(l => l / temp);
+  const maxVal = Math.max(...scaled);
+  const exps = scaled.map(s => Math.exp(s - maxVal));
+  const sum = exps.reduce((a, b) => a + b, 0);
+  return exps.map(e => e / sum);
+}
+
+function blueColor(val) {
+  // 0 -> white, 1 -> deep blue
+  const r = Math.round(lerp(255, 37, val));
+  const g = Math.round(lerp(255, 99, val));
+  const b = Math.round(lerp(255, 235, val));
+  return `rgb(${r},${g},${b})`;
+}
+
+function lerpColor(c1, c2, t) {
+  return [
+    lerp(c1[0], c2[0], t),
+    lerp(c1[1], c2[1], t),
+    lerp(c1[2], c2[2], t)
+  ];
+}
+
+const LABELS = ['t-2', 't-1', 't', 't+1'];
+const COLORS = {
+  text: '#1a1a2e',
+  secondary: '#4a4a6a',
+  muted: '#8888a0',
+  accent: '#c2402a',
+  blue: '#2563eb',
+  green: '#059669',
+  violet: '#7c3aed',
+  amber: '#d97706',
+  border: '#e0ddd5',
+  bgAlt: '#f3f0eb',
+  masked: '#e8e5de',
+  hatchLine: '#c8c5be'
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// HEAD PATTERNS (raw logits before masking/softmax)
+// ═══════════════════════════════════════════════════════════════════
+// Raw logit scores (pre-mask, pre-softmax). Upper triangle will be masked to -Infinity.
+const HEAD_LOGITS = [
+  // Head 1: "Recent focus" — strong diagonal and near-diagonal
+  [
+    [2.5, 0.0, 0.0, 0.0],
+    [0.5, 2.8, 0.0, 0.0],
+    [0.2, 0.8, 3.0, 0.0],
+    [0.1, 0.3, 1.2, 3.2]
+  ],
+  // Head 2: "First-frame anchor" — strong first column
+  [
+    [2.0, 0.0, 0.0, 0.0],
+    [2.5, 0.4, 0.0, 0.0],
+    [2.8, 0.3, 0.2, 0.0],
+    [3.0, 0.2, 0.1, 0.3]
+  ],
+  // Head 3: "Uniform history" — roughly equal logits
+  [
+    [1.0, 0.0, 0.0, 0.0],
+    [0.9, 1.0, 0.0, 0.0],
+    [0.8, 0.9, 1.0, 0.0],
+    [0.85, 0.9, 0.95, 1.0]
+  ],
+  // Head 4: "Skip connection / Self-attention" — strong diagonal
+  [
+    [3.5, 0.0, 0.0, 0.0],
+    [0.1, 3.5, 0.0, 0.0],
+    [0.05, 0.1, 3.5, 0.0],
+    [0.0, 0.05, 0.1, 3.5]
+  ]
+];
+
+function computeWeights(logits, temp) {
+  const N = logits.length;
+  const weights = [];
+  for (let i = 0; i < N; i++) {
+    const masked = [];
+    for (let j = 0; j < N; j++) {
+      masked.push(j <= i ? logits[i][j] : -1e9);
+    }
+    weights.push(softmax(masked, temp));
+  }
+  return weights;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 1. ATTENTION MATRIX EXPLORER (Hero)
+// ═══════════════════════════════════════════════════════════════════
+(function() {
+  const canvas = document.getElementById('hero-canvas');
+  const tooltip = document.getElementById('hero-tooltip');
+  const rowDetail = document.getElementById('row-detail');
+  const rowDetailTitle = document.getElementById('row-detail-title');
+  const barChart = document.getElementById('bar-chart');
+  const tempSlider = document.getElementById('temp-slider');
+  const tempValue = document.getElementById('temp-value');
+  const tabBtns = document.querySelectorAll('#head-tabs .tab-btn');
+
+  const W = 700, H = 520;
+  const ctx = setupCanvas(canvas, W, H);
+
+  let currentHead = 0;
+  let temperature = 1.0;
+  let displayWeights = computeWeights(HEAD_LOGITS[0], 1.0);
+  let targetWeights = displayWeights;
+  let animating = false;
+  let hoverRow = -1, hoverCol = -1;
+  let selectedRow = -1;
+
+  // Grid geometry — centered in the canvas
+  const cellSize = 100;
+  const gridSize = 4 * cellSize;
+  const gridLeft = (W - gridSize) / 2 + 50; // offset right to leave label room
+  const gridTop = 70;
+
+  function drawHatch(ctx, x, y, w, h) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    ctx.fillStyle = COLORS.masked;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = COLORS.hatchLine;
+    ctx.lineWidth = 1;
+    const step = 8;
+    for (let i = -h; i < w + h; i += step) {
+      ctx.beginPath();
+      ctx.moveTo(x + i, y);
+      ctx.lineTo(x + i + h, y + h);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Title
+    ctx.font = '500 13px "Source Code Pro"';
+    ctx.fillStyle = COLORS.muted;
+    ctx.textAlign = 'center';
+    ctx.fillText('QUERY (row)  vs  KEY (column)', gridLeft + gridSize / 2, 22);
+
+    // Column labels (keys)
+    ctx.font = '500 13px "Source Code Pro"';
+    ctx.textAlign = 'center';
+    for (let j = 0; j < 4; j++) {
+      const x = gridLeft + j * cellSize + cellSize / 2;
+      ctx.fillStyle = (hoverCol === j) ? COLORS.blue : COLORS.secondary;
+      ctx.fillText('Key ' + LABELS[j], x, gridTop - 14);
+    }
+
+    // Row labels (queries)
+    ctx.textAlign = 'right';
+    for (let i = 0; i < 4; i++) {
+      const y = gridTop + i * cellSize + cellSize / 2;
+      ctx.fillStyle = (hoverRow === i) ? COLORS.accent : COLORS.secondary;
+      ctx.font = '500 13px "Source Code Pro"';
+      ctx.fillText('Q ' + LABELS[i], gridLeft - 12, y + 4);
+    }
+
+    // Draw cells
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 4; j++) {
+        const x = gridLeft + j * cellSize;
+        const y = gridTop + i * cellSize;
+        const isMasked = j > i;
+
+        if (isMasked) {
+          drawHatch(ctx, x, y, cellSize, cellSize);
+          // Small infinity symbol
+          ctx.font = '400 12px "Source Code Pro"';
+          ctx.fillStyle = COLORS.hatchLine;
+          ctx.textAlign = 'center';
+          ctx.fillText('-\u221E', x + cellSize / 2, y + cellSize / 2 + 4);
+        } else {
+          const w = displayWeights[i][j];
+          ctx.fillStyle = blueColor(w);
+          ctx.fillRect(x, y, cellSize, cellSize);
+
+          // Weight text
+          ctx.font = '500 15px "Source Code Pro"';
+          ctx.fillStyle = w > 0.6 ? 'white' : COLORS.text;
+          ctx.textAlign = 'center';
+          ctx.fillText(w.toFixed(3), x + cellSize / 2, y + cellSize / 2 + 5);
+        }
+
+        // Highlight
+        if (i === hoverRow || j === hoverCol) {
+          ctx.fillStyle = (i === hoverRow && j === hoverCol)
+            ? 'rgba(194,64,42,0.12)' : 'rgba(37,99,235,0.06)';
+          ctx.fillRect(x, y, cellSize, cellSize);
+        }
+
+        // Selected row highlight
+        if (i === selectedRow) {
+          ctx.strokeStyle = COLORS.accent;
+          ctx.lineWidth = 2.5;
+          ctx.strokeRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
+        }
+
+        // Grid lines
+        ctx.strokeStyle = COLORS.border;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, cellSize, cellSize);
+      }
+    }
+
+    // Outer border
+    ctx.strokeStyle = COLORS.secondary;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(gridLeft, gridTop, gridSize, gridSize);
+
+    // "Causal mask" label for upper triangle
+    ctx.save();
+    ctx.font = 'italic 12px "Spectral"';
+    ctx.fillStyle = COLORS.muted;
+    ctx.textAlign = 'center';
+    ctx.translate(gridLeft + gridSize - 50, gridTop + 50);
+    ctx.rotate(-Math.PI / 4);
+    ctx.fillText('masked (causal)', 0, 0);
+    ctx.restore();
+
+    // Bottom detail: softmax computation for hovered row
+    if (hoverRow >= 0) {
+      const detailY = gridTop + gridSize + 20;
+      const logits = HEAD_LOGITS[currentHead][hoverRow];
+      const colW = 130;
+      const startX = gridLeft;
+
+      ctx.font = '500 12px "Source Code Pro"';
+      ctx.fillStyle = COLORS.accent;
+      ctx.textAlign = 'left';
+      ctx.fillText('Softmax for Query ' + LABELS[hoverRow] + ':', startX, detailY);
+
+      // Show computation: raw -> masked -> softmax
+      ctx.font = '400 11px "Source Code Pro"';
+      let cx = startX;
+      const rowY = detailY + 18;
+
+      // Raw scores
+      ctx.fillStyle = COLORS.muted;
+      ctx.textAlign = 'left';
+      ctx.fillText('scores/', cx, rowY);
+      ctx.fillText('\u221Ad :', cx, rowY + 14);
+      cx += 52;
+
+      for (let j = 0; j < 4; j++) {
+        const isMasked = j > hoverRow;
+        ctx.fillStyle = isMasked ? COLORS.hatchLine : COLORS.secondary;
+        const scoreText = isMasked ? '-\u221E' : (logits[j] / temperature).toFixed(2);
+        ctx.fillText(scoreText, cx, rowY + 7);
+        cx += 48;
+      }
+
+      ctx.fillStyle = COLORS.muted;
+      ctx.fillText('\u2192  softmax:', cx, rowY + 7);
+      cx += 76;
+
+      for (let j = 0; j < 4; j++) {
+        const w = displayWeights[hoverRow][j];
+        const isMasked = j > hoverRow;
+        ctx.fillStyle = isMasked ? COLORS.hatchLine : COLORS.blue;
+        ctx.font = '500 11px "Source Code Pro"';
+        ctx.fillText(isMasked ? '0' : w.toFixed(3), cx, rowY + 7);
+        cx += 48;
+      }
+    }
+  }
+
+  function animate() {
+    if (!animating) return;
+    let done = true;
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 4; j++) {
+        const diff = targetWeights[i][j] - displayWeights[i][j];
+        if (Math.abs(diff) > 0.001) {
+          displayWeights[i][j] += diff * 0.12;
+          done = false;
+        } else {
+          displayWeights[i][j] = targetWeights[i][j];
+        }
+      }
+    }
+    draw();
+    if (done) {
+      animating = false;
+    } else {
+      requestAnimationFrame(animate);
+    }
+  }
+
+  function updateWeights() {
+    targetWeights = computeWeights(HEAD_LOGITS[currentHead], temperature);
+    if (!animating) {
+      animating = true;
+      requestAnimationFrame(animate);
+    }
+    updateBarChart();
+  }
+
+  function getCell(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const scaleY = H / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const my = (e.clientY - rect.top) * scaleY;
+    const col = Math.floor((mx - gridLeft) / cellSize);
+    const row = Math.floor((my - gridTop) / cellSize);
+    if (row >= 0 && row < 4 && col >= 0 && col < 4) {
+      return { row, col, mx, my };
+    }
+    return null;
+  }
+
+  canvas.addEventListener('mousemove', function(e) {
+    const cell = getCell(e);
+    if (cell) {
+      hoverRow = cell.row;
+      hoverCol = cell.col;
+      const isMasked = cell.col > cell.row;
+      const w = isMasked ? 0 : displayWeights[cell.row][cell.col];
+      tooltip.textContent = isMasked
+        ? 'Masked (\u2212\u221E)'
+        : 'Attn(' + LABELS[cell.row] + ' \u2192 ' + LABELS[cell.col] + ') = ' + w.toFixed(4);
+      tooltip.classList.add('visible');
+
+      const rect = canvas.getBoundingClientRect();
+      tooltip.style.left = (e.clientX - rect.left + 12) + 'px';
+      tooltip.style.top = (e.clientY - rect.top - 30) + 'px';
+    } else {
+      hoverRow = -1;
+      hoverCol = -1;
+      tooltip.classList.remove('visible');
+    }
+    draw();
+  });
+
+  canvas.addEventListener('mouseleave', function() {
+    hoverRow = -1;
+    hoverCol = -1;
+    tooltip.classList.remove('visible');
+    draw();
+  });
+
+  canvas.addEventListener('click', function(e) {
+    const cell = getCell(e);
+    if (cell) {
+      selectedRow = (selectedRow === cell.row) ? -1 : cell.row;
+      updateBarChart();
+      draw();
+    }
+  });
+
+  function updateBarChart() {
+    if (selectedRow < 0) {
+      rowDetail.classList.remove('visible');
+      return;
+    }
+    rowDetail.classList.add('visible');
+    rowDetailTitle.textContent = 'Attention distribution for Query ' + LABELS[selectedRow];
+
+    const weights = (targetWeights || displayWeights)[selectedRow];
+    barChart.innerHTML = '';
+    for (let j = 0; j < 4; j++) {
+      const isMasked = j > selectedRow;
+      const w = isMasked ? 0 : weights[j];
+      const item = document.createElement('div');
+      item.className = 'bar-item';
+
+      const valEl = document.createElement('div');
+      valEl.className = 'bar-value';
+      valEl.textContent = w.toFixed(3);
+      item.appendChild(valEl);
+
+      const barEl = document.createElement('div');
+      barEl.className = 'bar';
+      barEl.style.height = (w * 70) + 'px';
+      barEl.style.background = isMasked ? COLORS.masked : COLORS.blue;
+      barEl.style.opacity = isMasked ? '0.4' : '1';
+      item.appendChild(barEl);
+
+      const labelEl = document.createElement('div');
+      labelEl.className = 'bar-label';
+      labelEl.textContent = 'Key ' + LABELS[j];
+      item.appendChild(labelEl);
+
+      barChart.appendChild(item);
+    }
+  }
+
+  // Tab switching
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', function() {
+      tabBtns.forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      currentHead = parseInt(this.dataset.head);
+      updateWeights();
+    });
+  });
+
+  // Temperature slider
+  tempSlider.addEventListener('input', function() {
+    temperature = parseFloat(this.value);
+    tempValue.textContent = temperature.toFixed(1);
+    updateWeights();
+  });
+
+  draw();
+})();
+
+
+// ═══════════════════════════════════════════════════════════════════
+// 2. WHY CAUSAL (Side-by-side grids)
+// ═══════════════════════════════════════════════════════════════════
+(function() {
+  const fullCanvas = document.getElementById('full-attn-canvas');
+  const causalCanvas = document.getElementById('causal-attn-canvas');
+
+  const W = 260, H = 220;
+  const ctxFull = setupCanvas(fullCanvas, W, H);
+  const ctxCausal = setupCanvas(causalCanvas, W, H);
+
+  const gridLeft = 55;
+  const gridTop = 20;
+  const cellSize = 44;
+  const N = 4;
+
+  let fullHover = -1, causalHover = -1;
+
+  function drawGrid(ctx, isCausal, hoverPos) {
+    ctx.clearRect(0, 0, W, H);
+
+    // Row/col labels
+    ctx.font = '400 11px "Source Code Pro"';
+    ctx.textAlign = 'center';
+    for (let j = 0; j < N; j++) {
+      const x = gridLeft + j * cellSize + cellSize / 2;
+      ctx.fillStyle = COLORS.muted;
+      ctx.fillText(LABELS[j], x, gridTop - 6);
+    }
+
+    ctx.textAlign = 'right';
+    for (let i = 0; i < N; i++) {
+      const y = gridTop + i * cellSize + cellSize / 2 + 4;
+      ctx.fillStyle = COLORS.muted;
+      ctx.fillText(LABELS[i], gridLeft - 8, y);
+    }
+
+    // Draw cells
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < N; j++) {
+        const x = gridLeft + j * cellSize;
+        const y = gridTop + i * cellSize;
+        const isMasked = isCausal && j > i;
+        const isActive = !isMasked;
+        const isHighlighted = hoverPos >= 0 && i === hoverPos && (isCausal ? j <= i : true);
+        const isAttendedTo = hoverPos >= 0 && (isCausal ? j <= hoverPos : true) && i === hoverPos;
+
+        if (isMasked) {
+          ctx.fillStyle = COLORS.masked;
+          ctx.fillRect(x, y, cellSize, cellSize);
+          // X mark
+          ctx.strokeStyle = '#d0cdc5';
+          ctx.lineWidth = 1.5;
+          const pad = 14;
+          ctx.beginPath();
+          ctx.moveTo(x + pad, y + pad);
+          ctx.lineTo(x + cellSize - pad, y + cellSize - pad);
+          ctx.moveTo(x + cellSize - pad, y + pad);
+          ctx.lineTo(x + pad, y + cellSize - pad);
+          ctx.stroke();
+        } else {
+          // Active cell
+          if (isHighlighted) {
+            ctx.fillStyle = isCausal
+              ? 'rgba(5,150,105,0.25)'
+              : 'rgba(194,64,42,0.2)';
+          } else {
+            ctx.fillStyle = isCausal
+              ? 'rgba(5,150,105,0.08)'
+              : 'rgba(37,99,235,0.08)';
+          }
+          ctx.fillRect(x, y, cellSize, cellSize);
+
+          // Check mark for highlighted
+          if (isHighlighted) {
+            ctx.font = '600 16px "Source Code Pro"';
+            ctx.fillStyle = isCausal ? COLORS.green : COLORS.accent;
+            ctx.textAlign = 'center';
+            ctx.fillText(isCausal ? '\u2713' : '\u2713', x + cellSize / 2, y + cellSize / 2 + 5);
+          }
+        }
+
+        // Grid lines
+        ctx.strokeStyle = COLORS.border;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, cellSize, cellSize);
+      }
+    }
+
+    // Outer border
+    ctx.strokeStyle = isCausal ? COLORS.green : COLORS.accent;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(gridLeft, gridTop, N * cellSize, N * cellSize);
+
+    // Arrow indicators when hovering
+    if (hoverPos >= 0) {
+      const arrowY = gridTop + hoverPos * cellSize + cellSize / 2;
+      ctx.fillStyle = isCausal ? COLORS.green : COLORS.accent;
+      // Left arrow indicator
+      ctx.beginPath();
+      ctx.moveTo(gridLeft - 3, arrowY - 5);
+      ctx.lineTo(gridLeft - 3, arrowY + 5);
+      ctx.lineTo(gridLeft + 3, arrowY);
+      ctx.fill();
+    }
+
+    // If full attention and hovering, show the problematic "future leak" arrow
+    if (!isCausal && hoverPos >= 0 && hoverPos < N - 1) {
+      const fromY = gridTop + hoverPos * cellSize + cellSize / 2;
+      const toCol = hoverPos + 1;
+      const toX = gridLeft + toCol * cellSize + cellSize / 2;
+
+      ctx.strokeStyle = COLORS.accent;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(gridLeft + N * cellSize + 4, fromY);
+      ctx.lineTo(gridLeft + N * cellSize + 20, fromY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Red warning
+      ctx.font = '600 10px "Source Code Pro"';
+      ctx.fillStyle = COLORS.accent;
+      ctx.textAlign = 'left';
+      ctx.fillText('LEAK!', gridLeft + N * cellSize + 6, fromY - 8);
+    }
+  }
+
+  function getGridPos(canvas, e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const scaleY = H / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const my = (e.clientY - rect.top) * scaleY;
+    const row = Math.floor((my - gridTop) / cellSize);
+    if (row >= 0 && row < N) return row;
+    return -1;
+  }
+
+  fullCanvas.addEventListener('mousemove', function(e) {
+    fullHover = getGridPos(fullCanvas, e);
+    drawGrid(ctxFull, false, fullHover);
+  });
+  fullCanvas.addEventListener('mouseleave', function() {
+    fullHover = -1;
+    drawGrid(ctxFull, false, -1);
+  });
+
+  causalCanvas.addEventListener('mousemove', function(e) {
+    causalHover = getGridPos(causalCanvas, e);
+    drawGrid(ctxCausal, true, causalHover);
+  });
+  causalCanvas.addEventListener('mouseleave', function() {
+    causalHover = -1;
+    drawGrid(ctxCausal, true, -1);
+  });
+
+  drawGrid(ctxFull, false, -1);
+  drawGrid(ctxCausal, true, -1);
+})();
+
+
+// ═══════════════════════════════════════════════════════════════════
+// 3. Q·K·V COMPUTATION (Step-by-step)
+// ═══════════════════════════════════════════════════════════════════
+(function() {
+  const canvas = document.getElementById('qkv-canvas');
+  const prevBtn = document.getElementById('step-prev');
+  const nextBtn = document.getElementById('step-next');
+  const indicator = document.getElementById('step-indicator');
+  const descEl = document.getElementById('step-desc');
+
+  const W = 860, H = 440;
+  const ctx = setupCanvas(canvas, W, H);
+
+  let currentStep = 0;
+  const totalSteps = 7;
+
+  const stepDescs = [
+    '<strong>Input embedding x</strong> &mdash; A frame embedding vector (dim=1024) enters the attention layer. This is one frame from the temporal sequence.',
+    '<strong>LayerNorm</strong> &mdash; The embedding is normalized to have zero mean and unit variance, stabilizing the attention computation.',
+    '<strong>Project to Q, K, V</strong> &mdash; A single linear projection (<code>to_qkv</code>) maps the input to three vectors: Query, Key, and Value, each of dimension <code>inner_dim = heads \u00D7 dim_head = 16 \u00D7 64 = 1024</code>.',
+    '<strong>Q \u00B7 K\u1D40 / \u221Ad</strong> &mdash; The query vector dots with each key vector to produce scalar attention scores. Scaling by <code>1/\u221A64 = 0.125</code> prevents the softmax from saturating.',
+    '<strong>Apply causal mask</strong> &mdash; Scores for future positions are set to \u2212\u221E, ensuring they become 0 after softmax. The model cannot peek ahead.',
+    '<strong>Softmax</strong> &mdash; The masked scores are passed through softmax, producing a probability distribution that sums to 1. These are the attention weights.',
+    '<strong>Weighted sum of V</strong> &mdash; Each value vector is multiplied by its attention weight, and the results are summed to produce the final output for this query position.'
+  ];
+
+  // Colors for Q, K, V bars
+  const qColor = [194, 64, 42];   // accent red
+  const kColor = [37, 99, 235];   // blue
+  const vColor = [5, 150, 105];   // green
+  const xColor = [124, 58, 237];  // violet
+
+  function drawBar(x, y, w, h, color, label, ctx) {
+    const [r, g, b] = color;
+    // Gradient bar
+    const grad = ctx.createLinearGradient(x, y, x + w, y);
+    grad.addColorStop(0, `rgba(${r},${g},${b},0.85)`);
+    grad.addColorStop(1, `rgba(${r},${g},${b},0.55)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 4);
+    ctx.fill();
+    ctx.strokeStyle = `rgb(${r},${g},${b})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 4);
+    ctx.stroke();
+
+    if (label) {
+      ctx.font = '600 13px "Source Code Pro"';
+      ctx.fillStyle = 'white';
+      ctx.textAlign = 'left';
+      ctx.fillText(label, x + 10, y + h / 2 + 4);
+    }
+  }
+
+  function drawArrow(x1, y1, x2, y2, color, ctx) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const headLen = 8;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - headLen * Math.cos(angle - 0.4), y2 - headLen * Math.sin(angle - 0.4));
+    ctx.lineTo(x2 - headLen * Math.cos(angle + 0.4), y2 - headLen * Math.sin(angle + 0.4));
+    ctx.fill();
+  }
+
+  function drawStep(step) {
+    ctx.clearRect(0, 0, W, H);
+
+    const centerX = W / 2;
+    const barW = 280;
+    const barH = 24;
+    const smallBarW = 180;
+    const smallBarH = 24;
+    const boxH = 34;
+
+    if (step >= 0) {
+      // Step 0: Input embedding
+      const inputY = 20;
+      drawBar(centerX - barW / 2, inputY, barW, barH, xColor, 'x  (frame embedding, dim=1024)', ctx);
+
+      if (step >= 1) {
+        // Step 1: LayerNorm
+        drawArrow(centerX, inputY + barH, centerX, inputY + barH + 20, COLORS.muted, ctx);
+        ctx.font = '400 11px "Source Code Pro"';
+        ctx.fillStyle = COLORS.muted;
+        ctx.textAlign = 'left';
+        ctx.fillText('LayerNorm', centerX + 8, inputY + barH + 13);
+
+        const normY = inputY + barH + 24;
+        drawBar(centerX - barW / 2, normY, barW, barH, xColor, 'x\u0302  (normalized)', ctx);
+
+        if (step >= 2) {
+          // Step 2: Q, K, V projection
+          const projY = normY + barH + 40;
+          const qX = centerX - 200;
+          const kX = centerX - 10;
+          const vX = centerX + 180;
+
+          drawArrow(centerX - 60, normY + barH, qX + smallBarW / 2, projY - 5, `rgb(${qColor.join(',')})`, ctx);
+          drawArrow(centerX, normY + barH, kX + smallBarW / 2, projY - 5, `rgb(${kColor.join(',')})`, ctx);
+          drawArrow(centerX + 60, normY + barH, vX + smallBarW / 2, projY - 5, `rgb(${vColor.join(',')})`, ctx);
+
+          ctx.font = '400 11px "Source Code Pro"';
+          ctx.fillStyle = COLORS.muted;
+          ctx.textAlign = 'center';
+          ctx.fillText('to_qkv  (linear, no bias)', centerX, normY + barH + 14);
+
+          drawBar(qX, projY, smallBarW, smallBarH, qColor, 'Q  (query)', ctx);
+          drawBar(kX, projY, smallBarW, smallBarH, kColor, 'K  (key)', ctx);
+          drawBar(vX, projY, smallBarW, smallBarH, vColor, 'V  (value)', ctx);
+
+          if (step >= 3) {
+            // Step 3: Dot product scores
+            const scoreY = projY + smallBarH + 40;
+            const scoreW = 70;
+
+            ctx.font = '400 12px "Source Code Pro"';
+            ctx.fillStyle = COLORS.secondary;
+            ctx.textAlign = 'center';
+            ctx.fillText('Q \u00B7 K\u1D40 / \u221A64', centerX, projY + smallBarH + 16);
+
+            const scores = [2.1, 1.8, 0.9, 0.4];
+            const scoreLabels = ['t-2', 't-1', 't', 't+1'];
+            const scoreStartX = centerX - (4 * scoreW + 3 * 12) / 2;
+            for (let j = 0; j < 4; j++) {
+              const sx = scoreStartX + j * (scoreW + 12);
+              ctx.fillStyle = 'rgba(37,99,235,0.08)';
+              ctx.beginPath();
+              ctx.roundRect(sx, scoreY, scoreW, boxH, 4);
+              ctx.fill();
+              ctx.strokeStyle = COLORS.border;
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.roundRect(sx, scoreY, scoreW, boxH, 4);
+              ctx.stroke();
+
+              ctx.font = '500 13px "Source Code Pro"';
+              ctx.fillStyle = COLORS.blue;
+              ctx.textAlign = 'center';
+              ctx.fillText(scores[j].toFixed(1), sx + scoreW / 2, scoreY + 15);
+              ctx.font = '400 10px "Source Code Pro"';
+              ctx.fillStyle = COLORS.muted;
+              ctx.fillText(scoreLabels[j], sx + scoreW / 2, scoreY + 28);
+            }
+
+            drawArrow(qX + smallBarW / 2, projY + smallBarH, scoreStartX + scoreW / 2, scoreY - 5, `rgba(${qColor.join(',')},0.4)`, ctx);
+            for (let j = 0; j < 4; j++) {
+              const sx = scoreStartX + j * (scoreW + 12);
+              drawArrow(kX + smallBarW / 2, projY + smallBarH, sx + scoreW / 2, scoreY - 5, `rgba(${kColor.join(',')},0.2)`, ctx);
+            }
+
+            if (step >= 4) {
+              // Step 4: Apply causal mask
+              const maskY = scoreY + boxH + 14;
+
+              ctx.font = '400 11px "Source Code Pro"';
+              ctx.fillStyle = COLORS.muted;
+              ctx.textAlign = 'center';
+              ctx.fillText('causal mask (query = t, future = t+1)', centerX, maskY - 4);
+
+              for (let j = 0; j < 4; j++) {
+                const sx = scoreStartX + j * (scoreW + 12);
+                const isMasked = j > 2;
+
+                ctx.fillStyle = isMasked ? 'rgba(194,64,42,0.1)' : 'rgba(37,99,235,0.08)';
+                ctx.beginPath();
+                ctx.roundRect(sx, maskY, scoreW, boxH, 4);
+                ctx.fill();
+                ctx.strokeStyle = isMasked ? COLORS.accent : COLORS.border;
+                ctx.lineWidth = isMasked ? 2 : 1;
+                ctx.beginPath();
+                ctx.roundRect(sx, maskY, scoreW, boxH, 4);
+                ctx.stroke();
+
+                ctx.font = '500 13px "Source Code Pro"';
+                ctx.fillStyle = isMasked ? COLORS.accent : COLORS.blue;
+                ctx.textAlign = 'center';
+                const txt = isMasked ? '-\u221E' : scores[j].toFixed(1);
+                ctx.fillText(txt, sx + scoreW / 2, maskY + 15);
+                ctx.font = '400 10px "Source Code Pro"';
+                ctx.fillStyle = COLORS.muted;
+                ctx.fillText(scoreLabels[j], sx + scoreW / 2, maskY + 28);
+
+                if (isMasked) {
+                  ctx.strokeStyle = COLORS.accent;
+                  ctx.lineWidth = 2;
+                  ctx.beginPath();
+                  ctx.moveTo(sx + 8, maskY + 4);
+                  ctx.lineTo(sx + scoreW - 8, maskY + boxH - 4);
+                  ctx.moveTo(sx + scoreW - 8, maskY + 4);
+                  ctx.lineTo(sx + 8, maskY + boxH - 4);
+                  ctx.stroke();
+                }
+              }
+
+              if (step >= 5) {
+                // Step 5: Softmax
+                const smY = maskY + boxH + 14;
+                const smWeights = softmax([2.1, 1.8, 0.9], 1.0);
+                smWeights.push(0);
+
+                ctx.font = '400 11px "Source Code Pro"';
+                ctx.fillStyle = COLORS.muted;
+                ctx.textAlign = 'center';
+                ctx.fillText('softmax \u2192 attention weights (sum = 1.0)', centerX, smY - 4);
+
+                for (let j = 0; j < 4; j++) {
+                  const sx = scoreStartX + j * (scoreW + 12);
+                  const w = smWeights[j];
+                  const isMasked = j > 2;
+
+                  ctx.fillStyle = isMasked ? COLORS.masked : blueColor(w);
+                  ctx.beginPath();
+                  ctx.roundRect(sx, smY, scoreW, boxH, 4);
+                  ctx.fill();
+                  ctx.strokeStyle = COLORS.border;
+                  ctx.lineWidth = 1;
+                  ctx.beginPath();
+                  ctx.roundRect(sx, smY, scoreW, boxH, 4);
+                  ctx.stroke();
+
+                  ctx.font = '500 13px "Source Code Pro"';
+                  ctx.fillStyle = (w > 0.5 && !isMasked) ? 'white' : COLORS.secondary;
+                  ctx.textAlign = 'center';
+                  ctx.fillText(w.toFixed(3), sx + scoreW / 2, smY + 15);
+                  ctx.font = '400 10px "Source Code Pro"';
+                  ctx.fillStyle = COLORS.muted;
+                  ctx.fillText(scoreLabels[j], sx + scoreW / 2, smY + 28);
+                }
+
+                if (step >= 6) {
+                  // Step 6: Weighted sum of V
+                  const outY = smY + boxH + 14;
+
+                  ctx.font = '400 11px "Source Code Pro"';
+                  ctx.fillStyle = COLORS.muted;
+                  ctx.textAlign = 'center';
+                  ctx.fillText('\u03A3 w\u1D62 \u00B7 V\u1D62', centerX, outY - 4);
+
+                  for (let j = 0; j < 3; j++) {
+                    const sx = scoreStartX + j * (scoreW + 12);
+                    const w = smWeights[j];
+
+                    ctx.globalAlpha = 0.3 + 0.7 * w;
+                    drawBar(sx, outY, scoreW, 20, vColor, '', ctx);
+                    ctx.globalAlpha = 1.0;
+
+                    ctx.font = '400 10px "Source Code Pro"';
+                    ctx.fillStyle = COLORS.muted;
+                    ctx.textAlign = 'center';
+                    ctx.fillText(w.toFixed(2) + '\u00D7V', sx + scoreW / 2, outY + 13);
+                  }
+
+                  // Final output
+                  const finalY = outY + 28;
+                  drawArrow(centerX, outY + 20, centerX, finalY, `rgb(${vColor.join(',')})`, ctx);
+                  drawBar(centerX - barW / 2, finalY + 4, barW, barH, vColor, 'output  (attended representation)', ctx);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  function updateStep() {
+    indicator.textContent = 'Step ' + (currentStep + 1) + ' / ' + totalSteps;
+    descEl.innerHTML = stepDescs[currentStep];
+    prevBtn.disabled = currentStep === 0;
+    nextBtn.disabled = currentStep === totalSteps - 1;
+    drawStep(currentStep);
+  }
+
+  prevBtn.addEventListener('click', function() {
+    if (currentStep > 0) { currentStep--; updateStep(); }
+  });
+
+  nextBtn.addEventListener('click', function() {
+    if (currentStep < totalSteps - 1) { currentStep++; updateStep(); }
+  });
+
+  updateStep();
+})();
+
+
+// ═══════════════════════════════════════════════════════════════════
+// 4. MULTI-HEAD ATTENTION DIAGRAM
+// ═══════════════════════════════════════════════════════════════════
+(function() {
+  const canvas = document.getElementById('multihead-canvas');
+  const tooltip = document.getElementById('multihead-tooltip');
+  const detailOverlay = document.getElementById('head-detail');
+  const detailCanvas = document.getElementById('head-detail-canvas');
+  const detailClose = document.getElementById('head-detail-close');
+
+  const W = 860, H = 400;
+  const ctx = setupCanvas(canvas, W, H);
+  const detailCtx = setupCanvas(detailCanvas, 200, 200);
+
+  const numHeads = 16;
+  const headW = 36;
+  const headGap = 6;
+  const totalW = numHeads * headW + (numHeads - 1) * headGap;
+  const startX = (W - totalW) / 2;
+  const headTop = 100;
+  const headH = 180;
+
+  let hoverHead = -1;
+  let selectedHead = -1;
+
+  // Generate random but plausible patterns for all 16 heads
+  const headPatterns = [];
+  for (let h = 0; h < numHeads; h++) {
+    const pattern = [];
+    for (let i = 0; i < 4; i++) {
+      const row = [];
+      for (let j = 0; j < 4; j++) {
+        if (j > i) {
+          row.push(0); // masked
+        } else {
+          // Different patterns for variety
+          let val;
+          if (h < 4) {
+            // Recent focus heads
+            val = (j === i) ? 0.5 + Math.random() * 0.4 : 0.1 + Math.random() * 0.15;
+          } else if (h < 8) {
+            // First-anchor heads
+            val = (j === 0) ? 0.4 + Math.random() * 0.4 : 0.05 + Math.random() * 0.2;
+          } else if (h < 12) {
+            // Uniform heads
+            val = 0.2 + Math.random() * 0.2;
+          } else {
+            // Skip / diagonal heads
+            val = (j === i) ? 0.7 + Math.random() * 0.25 : 0.02 + Math.random() * 0.1;
+          }
+          row.push(val);
+        }
+      }
+      // Normalize row
+      const sum = row.filter((_, idx) => idx <= i).reduce((a, b) => a + b, 0);
+      for (let j = 0; j <= i; j++) row[j] /= sum;
+      pattern.push(row);
+    }
+    headPatterns.push(pattern);
+  }
+
+  const headColors = [];
+  for (let h = 0; h < numHeads; h++) {
+    const t = h / (numHeads - 1);
+    const r = Math.round(lerp(37, 194, t));
+    const g = Math.round(lerp(99, 64, t));
+    const b = Math.round(lerp(235, 42, t));
+    headColors.push([r, g, b]);
+  }
+
+  function drawMultiHead() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Title
+    ctx.font = '500 14px "Source Code Pro"';
+    ctx.fillStyle = COLORS.muted;
+    ctx.textAlign = 'center';
+    ctx.fillText('16 ATTENTION HEADS  \u00D7  dim_head = 64  =  inner_dim = 1024', W / 2, 30);
+
+    // Input bar (top)
+    const inputY = 50;
+    const inputH = 24;
+    const grad1 = ctx.createLinearGradient(startX, inputY, startX + totalW, inputY);
+    grad1.addColorStop(0, 'rgba(124,58,237,0.7)');
+    grad1.addColorStop(1, 'rgba(124,58,237,0.4)');
+    ctx.fillStyle = grad1;
+    ctx.beginPath();
+    ctx.roundRect(startX, inputY, totalW, inputH, 4);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(124,58,237,0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(startX, inputY, totalW, inputH, 4);
+    ctx.stroke();
+    ctx.font = '600 11px "Source Code Pro"';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.fillText('Input: x  (dim = 1024)', startX + totalW / 2, inputY + 15);
+
+    // Fan-out arrows
+    for (let h = 0; h < numHeads; h++) {
+      const hx = startX + h * (headW + headGap) + headW / 2;
+      ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(startX + totalW / 2, inputY + inputH);
+      ctx.lineTo(hx, headTop);
+      ctx.stroke();
+    }
+
+    // Draw head columns
+    for (let h = 0; h < numHeads; h++) {
+      const hx = startX + h * (headW + headGap);
+      const isHovered = h === hoverHead;
+
+      // Column background
+      const [cr, cg, cb] = headColors[h];
+      ctx.fillStyle = isHovered
+        ? `rgba(${cr},${cg},${cb},0.2)`
+        : `rgba(${cr},${cg},${cb},0.08)`;
+      ctx.beginPath();
+      ctx.roundRect(hx, headTop, headW, headH, 4);
+      ctx.fill();
+      ctx.strokeStyle = isHovered
+        ? `rgb(${cr},${cg},${cb})`
+        : COLORS.border;
+      ctx.lineWidth = isHovered ? 2 : 1;
+      ctx.beginPath();
+      ctx.roundRect(hx, headTop, headW, headH, 4);
+      ctx.stroke();
+
+      // Mini 4x4 heatmap inside
+      const miniSize = 7;
+      const miniPad = (headW - 4 * miniSize) / 2;
+      const miniTop = headTop + 30;
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          const mx = hx + miniPad + j * miniSize;
+          const my = miniTop + i * miniSize;
+          if (j > i) {
+            ctx.fillStyle = COLORS.masked;
+          } else {
+            const w = headPatterns[h][i][j];
+            ctx.fillStyle = blueColor(w);
+          }
+          ctx.fillRect(mx, my, miniSize - 1, miniSize - 1);
+        }
+      }
+
+      // Head number
+      ctx.font = '500 10px "Source Code Pro"';
+      ctx.fillStyle = isHovered ? `rgb(${cr},${cg},${cb})` : COLORS.muted;
+      ctx.textAlign = 'center';
+      ctx.fillText('H' + (h + 1), hx + headW / 2, headTop + 18);
+
+      // dim label
+      ctx.font = '400 8px "Source Code Pro"';
+      ctx.fillStyle = COLORS.muted;
+      ctx.fillText('64', hx + headW / 2, headTop + headH - 8);
+
+      // Highlight effect
+      if (isHovered) {
+        ctx.fillStyle = `rgba(${cr},${cg},${cb},0.06)`;
+        ctx.fillRect(hx - 2, headTop - 2, headW + 4, headH + 4);
+      }
+    }
+
+    // Output concat bar
+    const concatY = headTop + headH + 30;
+    const concatH = 24;
+
+    // Fan-in arrows
+    for (let h = 0; h < numHeads; h++) {
+      const hx = startX + h * (headW + headGap) + headW / 2;
+      ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(hx, headTop + headH);
+      ctx.lineTo(startX + totalW / 2, concatY);
+      ctx.stroke();
+    }
+
+    const grad2 = ctx.createLinearGradient(startX, concatY, startX + totalW, concatY);
+    grad2.addColorStop(0, 'rgba(5,150,105,0.7)');
+    grad2.addColorStop(1, 'rgba(5,150,105,0.4)');
+    ctx.fillStyle = grad2;
+    ctx.beginPath();
+    ctx.roundRect(startX, concatY, totalW, concatH, 4);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(5,150,105,0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(startX, concatY, totalW, concatH, 4);
+    ctx.stroke();
+    ctx.font = '600 11px "Source Code Pro"';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.fillText('Concat + Linear \u2192 output  (dim = 1024)', startX + totalW / 2, concatY + 15);
+
+    // Final output arrow
+    const outY = concatY + concatH + 15;
+    drawArrowMH(startX + totalW / 2, concatY + concatH, startX + totalW / 2, outY, COLORS.green);
+    ctx.font = '400 11px "Source Code Pro"';
+    ctx.fillStyle = COLORS.muted;
+    ctx.textAlign = 'center';
+    ctx.fillText('to_out projection', startX + totalW / 2, outY + 14);
+  }
+
+  function drawArrowMH(x1, y1, x2, y2, color) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const headLen = 7;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - headLen * Math.cos(angle - 0.4), y2 - headLen * Math.sin(angle - 0.4));
+    ctx.lineTo(x2 - headLen * Math.cos(angle + 0.4), y2 - headLen * Math.sin(angle + 0.4));
+    ctx.fill();
+  }
+
+  function getHead(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const scaleY = H / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const my = (e.clientY - rect.top) * scaleY;
+
+    if (my >= headTop && my <= headTop + headH) {
+      for (let h = 0; h < numHeads; h++) {
+        const hx = startX + h * (headW + headGap);
+        if (mx >= hx && mx <= hx + headW) return h;
+      }
+    }
+    return -1;
+  }
+
+  function drawHeadDetail(headIdx) {
+    const dW = 200, dH = 200;
+    detailCtx.clearRect(0, 0, dW, dH);
+
+    const cellSize = 36;
+    const gridLeft = (dW - 4 * cellSize) / 2;
+    const gridTop = 30;
+
+    detailCtx.font = '500 12px "Source Code Pro"';
+    detailCtx.fillStyle = COLORS.secondary;
+    detailCtx.textAlign = 'center';
+    detailCtx.fillText('Head ' + (headIdx + 1) + ' Attention', dW / 2, 16);
+
+    // Labels
+    detailCtx.font = '400 9px "Source Code Pro"';
+    for (let j = 0; j < 4; j++) {
+      detailCtx.fillStyle = COLORS.muted;
+      detailCtx.textAlign = 'center';
+      detailCtx.fillText(LABELS[j], gridLeft + j * cellSize + cellSize / 2, gridTop - 4);
+    }
+
+    detailCtx.textAlign = 'right';
+    for (let i = 0; i < 4; i++) {
+      detailCtx.fillStyle = COLORS.muted;
+      detailCtx.fillText(LABELS[i], gridLeft - 4, gridTop + i * cellSize + cellSize / 2 + 3);
+    }
+
+    const pattern = headPatterns[headIdx];
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 4; j++) {
+        const x = gridLeft + j * cellSize;
+        const y = gridTop + i * cellSize;
+        if (j > i) {
+          detailCtx.fillStyle = COLORS.masked;
+          detailCtx.fillRect(x, y, cellSize, cellSize);
+        } else {
+          const w = pattern[i][j];
+          detailCtx.fillStyle = blueColor(w);
+          detailCtx.fillRect(x, y, cellSize, cellSize);
+
+          detailCtx.font = '500 10px "Source Code Pro"';
+          detailCtx.fillStyle = w > 0.6 ? 'white' : COLORS.text;
+          detailCtx.textAlign = 'center';
+          detailCtx.fillText(w.toFixed(2), x + cellSize / 2, y + cellSize / 2 + 3);
+        }
+        detailCtx.strokeStyle = COLORS.border;
+        detailCtx.lineWidth = 1;
+        detailCtx.strokeRect(x, y, cellSize, cellSize);
+      }
+    }
+  }
+
+  canvas.addEventListener('mousemove', function(e) {
+    const h = getHead(e);
+    if (h !== hoverHead) {
+      hoverHead = h;
+      drawMultiHead();
+    }
+
+    if (h >= 0) {
+      tooltip.textContent = 'Head ' + (h + 1) + ' (dim_head=64) \u2014 click to expand';
+      tooltip.classList.add('visible');
+      const rect = canvas.getBoundingClientRect();
+      tooltip.style.left = (e.clientX - rect.left + 12) + 'px';
+      tooltip.style.top = (e.clientY - rect.top - 30) + 'px';
+    } else {
+      tooltip.classList.remove('visible');
+    }
+  });
+
+  canvas.addEventListener('mouseleave', function() {
+    hoverHead = -1;
+    tooltip.classList.remove('visible');
+    drawMultiHead();
+  });
+
+  canvas.addEventListener('click', function(e) {
+    const h = getHead(e);
+    if (h >= 0) {
+      selectedHead = h;
+      drawHeadDetail(h);
+      detailOverlay.classList.add('visible');
+    }
+  });
+
+  detailClose.addEventListener('click', function() {
+    detailOverlay.classList.remove('visible');
+    selectedHead = -1;
+  });
+
+  drawMultiHead();
+})();
+</script>
+</body>
+</html>

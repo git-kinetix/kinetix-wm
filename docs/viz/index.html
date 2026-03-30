@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeWM &mdash; Interactive Explorations</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Source+Code+Pro:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #faf9f6;
+    --bg-alt: #f3f0eb;
+    --text: #1a1a2e;
+    --text-secondary: #4a4a6a;
+    --text-muted: #8888a0;
+    --accent: #c2402a;
+    --accent-hover: #a03520;
+    --link: #2563eb;
+    --link-hover: #1d4ed8;
+    --border: #e0ddd5;
+    --card-shadow: 0 2px 8px rgba(26,26,46,0.06), 0 1px 3px rgba(26,26,46,0.04);
+    --card-hover-shadow: 0 8px 24px rgba(26,26,46,0.10), 0 2px 6px rgba(26,26,46,0.06);
+
+    --font-serif: 'Spectral', Georgia, 'Times New Roman', serif;
+    --font-display: 'Newsreader', 'Spectral', Georgia, serif;
+    --font-mono: 'Source Code Pro', 'Menlo', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-serif);
+    font-size: 18px;
+    line-height: 1.78;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Article Container ── */
+  .article {
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 80px 0 48px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+
+  .overline {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4.5vw, 2.8rem);
+    font-weight: 600;
+    line-height: 1.15;
+    color: var(--text);
+    margin-bottom: 20px;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    font-family: var(--font-serif);
+    font-size: 1.2rem;
+    font-weight: 300;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    max-width: 600px;
+  }
+
+  .byline {
+    margin-top: 28px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .byline a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .byline a:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* ── Introduction ── */
+  .intro {
+    margin-bottom: 56px;
+  }
+
+  .intro p {
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+  }
+
+  .intro strong {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* ── Visualization Cards ── */
+  .grid-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    display: block;
+  }
+
+  .viz-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    margin-bottom: 72px;
+  }
+
+  .viz-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+    box-shadow: var(--card-shadow);
+    text-decoration: none;
+    color: inherit;
+    display: grid;
+    grid-template-columns: 200px 1fr;
+  }
+
+  .viz-card:hover {
+    box-shadow: var(--card-hover-shadow);
+    transform: translateY(-2px);
+  }
+
+  .viz-card:active {
+    transform: translateY(0);
+  }
+
+  .viz-preview {
+    background: var(--bg-alt);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    border-right: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .viz-preview canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .viz-body {
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .viz-number {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+
+  .viz-title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.3;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+  }
+
+  .viz-desc {
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  .viz-tags {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+    background: var(--bg-alt);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+
+  @media (max-width: 640px) {
+    .viz-card {
+      grid-template-columns: 1fr;
+    }
+    .viz-preview {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      min-height: 120px;
+    }
+  }
+
+  /* ── Architecture Summary ── */
+  .equation-block {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px 28px;
+    margin: 24px 0;
+    text-align: center;
+    font-family: var(--font-serif);
+    font-size: 1.1rem;
+    font-style: italic;
+    color: var(--text);
+  }
+
+  .equation-block .var { color: var(--accent); }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 0 56px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  footer a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  footer a:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* ── Animations ── */
+  .fade-in {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+
+  .fade-in.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<div class="article">
+
+  <header>
+    <span class="overline">Interactive Explorations</span>
+    <h1>Understanding LeWM's<br>Representation Space</h1>
+    <p class="subtitle">
+      A collection of interactive visualizations that make tangible the
+      mechanisms behind LeWorldModel&thinsp;&mdash;&thinsp;from patch tokenization
+      to the SIGReg regularizer that prevents collapse.
+    </p>
+    <div class="byline">
+      Based on <a href="https://arxiv.org/pdf/2603.19312v1">Maes, Le Lidec, Scieur, LeCun &amp; Balestriero (2026)</a>
+    </div>
+  </header>
+
+  <div class="intro">
+    <p>
+      LeWorldModel learns a compact representation space from raw video frames
+      by predicting future states in embedding space rather than reconstructing pixels.
+      The key insight is that <strong>only two loss terms</strong> are needed for stable
+      end-to-end training: a prediction loss and the SIGReg regularizer.
+    </p>
+    <p>
+      Each visualization below isolates one concept from the architecture, making it
+      explorable through direct interaction. Drag sliders, hover over elements, and
+      step through animations to build intuition for how each piece works.
+    </p>
+
+    <div class="equation-block">
+      <span class="var">L</span> = <span class="var">L</span><sub>pred</sub> + <span class="var">&lambda;</span> &middot; <span class="var">L</span><sub>SIGReg</sub>
+      &emsp;&emsp;
+      <span class="var">&lambda;</span> = 0.09
+    </div>
+  </div>
+
+  <span class="grid-label">Explorations</span>
+
+  <div class="viz-grid">
+
+    <a href="01-patch-tokenization.html" class="viz-card fade-in">
+      <div class="viz-preview">
+        <canvas id="preview-1"></canvas>
+      </div>
+      <div class="viz-body">
+        <div class="viz-number">01</div>
+        <div class="viz-title">From Pixels to Tokens</div>
+        <div class="viz-desc">
+          How the Vision Transformer splits a 224&times;224 frame into 256 patches,
+          processes them through self-attention, and distills a single CLS embedding.
+        </div>
+        <div class="viz-tags">
+          <span class="tag">ViT Encoder</span>
+          <span class="tag">Patch Embedding</span>
+          <span class="tag">Interactive</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="02-embedding-space.html" class="viz-card fade-in">
+      <div class="viz-preview">
+        <canvas id="preview-2"></canvas>
+      </div>
+      <div class="viz-body">
+        <div class="viz-number">02</div>
+        <div class="viz-title">The Embedding Space &amp; SIGReg</div>
+        <div class="viz-desc">
+          Watch embeddings collapse without regularization, then see SIGReg
+          push them toward an isotropic Gaussian. Adjust &lambda; with a slider
+          and explore the characteristic function test.
+        </div>
+        <div class="viz-tags">
+          <span class="tag">SIGReg</span>
+          <span class="tag">Collapse Prevention</span>
+          <span class="tag">Particle Simulation</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="03-prediction.html" class="viz-card fade-in">
+      <div class="viz-preview">
+        <canvas id="preview-3"></canvas>
+      </div>
+      <div class="viz-body">
+        <div class="viz-number">03</div>
+        <div class="viz-title">Prediction in Latent Space</div>
+        <div class="viz-desc">
+          Step through the prediction pipeline: context frames enter the predictor,
+          action embeddings condition via AdaLN-zero, and the predicted next-state
+          embedding is compared against the ground truth.
+        </div>
+        <div class="viz-tags">
+          <span class="tag">ARPredictor</span>
+          <span class="tag">AdaLN-zero</span>
+          <span class="tag">MSE Loss</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="04-causal-attention.html" class="viz-card fade-in">
+      <div class="viz-preview">
+        <canvas id="preview-4"></canvas>
+      </div>
+      <div class="viz-body">
+        <div class="viz-number">04</div>
+        <div class="viz-title">Causal Self-Attention</div>
+        <div class="viz-desc">
+          Explore the attention matrix inside the ARPredictor. See how the causal
+          mask prevents future frames from influencing past predictions, and switch
+          between attention heads to compare learned patterns.
+        </div>
+        <div class="viz-tags">
+          <span class="tag">Attention</span>
+          <span class="tag">Causal Mask</span>
+          <span class="tag">Multi-Head</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="05-training-dynamics.html" class="viz-card fade-in">
+      <div class="viz-preview">
+        <canvas id="preview-5"></canvas>
+      </div>
+      <div class="viz-body">
+        <div class="viz-number">05</div>
+        <div class="viz-title">Training Dynamics &amp; Rollout</div>
+        <div class="viz-desc">
+          Simulate training with different &lambda; values. Watch loss curves diverge
+          toward collapse or randomness. Then step through autoregressive rollout
+          as the predictor chains predictions forward in time.
+        </div>
+        <div class="viz-tags">
+          <span class="tag">Loss Curves</span>
+          <span class="tag">Lambda Tuning</span>
+          <span class="tag">Rollout</span>
+        </div>
+      </div>
+    </a>
+
+  </div>
+
+</div>
+
+<footer>
+  <a href="../training-guide.html">Training Guide</a> &ensp;&middot;&ensp;
+  <a href="https://arxiv.org/pdf/2603.19312v1">Paper</a> &ensp;&middot;&ensp;
+  <a href="https://le-wm.github.io/">Project Site</a>
+</footer>
+
+<script>
+// ── Card Preview Animations ──
+
+// Preview 1: Patch grid
+(function() {
+  const c = document.getElementById('preview-1');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  let w, h;
+
+  function resize() {
+    const r = c.parentElement.getBoundingClientRect();
+    c.width = w = r.width * devicePixelRatio;
+    c.height = h = r.height * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+  resize();
+
+  const cols = ['#c2402a','#2563eb','#059669','#d97706','#7c3aed','#db2777'];
+  let frame = 0;
+
+  function draw() {
+    const rw = w / devicePixelRatio, rh = h / devicePixelRatio;
+    ctx.clearRect(0, 0, rw, rh);
+    const gridSize = 6;
+    const padding = 16;
+    const cellW = (rw - padding * 2) / gridSize;
+    const cellH = (rh - padding * 2) / gridSize;
+
+    for (let r = 0; r < gridSize; r++) {
+      for (let cl = 0; cl < gridSize; cl++) {
+        const x = padding + cl * cellW;
+        const y = padding + r * cellH;
+        const idx = (r * gridSize + cl + Math.floor(frame / 30)) % cols.length;
+        const alpha = 0.12 + 0.08 * Math.sin((frame + r * 5 + cl * 7) * 0.03);
+        ctx.fillStyle = cols[idx];
+        ctx.globalAlpha = alpha;
+        ctx.fillRect(x + 1, y + 1, cellW - 2, cellH - 2);
+      }
+    }
+    ctx.globalAlpha = 1;
+    frame++;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// Preview 2: Particles
+(function() {
+  const c = document.getElementById('preview-2');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  let w, h;
+
+  function resize() {
+    const r = c.parentElement.getBoundingClientRect();
+    c.width = w = r.width * devicePixelRatio;
+    c.height = h = r.height * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+  resize();
+
+  const particles = Array.from({length: 60}, () => ({
+    x: Math.random(), y: Math.random(),
+    vx: (Math.random() - 0.5) * 0.002,
+    vy: (Math.random() - 0.5) * 0.002,
+  }));
+
+  function draw() {
+    const rw = w / devicePixelRatio, rh = h / devicePixelRatio;
+    ctx.clearRect(0, 0, rw, rh);
+
+    // Gaussian contours
+    const cx = rw / 2, cy = rh / 2;
+    for (let i = 3; i >= 1; i--) {
+      const rad = i * Math.min(rw, rh) * 0.12;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(194,64,42,${0.06 * i})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    particles.forEach(p => {
+      // Gentle pull toward center (Gaussian attractor)
+      p.vx += (0.5 - p.x) * 0.0003;
+      p.vy += (0.5 - p.y) * 0.0003;
+      p.vx *= 0.995; p.vy *= 0.995;
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0.05 || p.x > 0.95) p.vx *= -0.5;
+      if (p.y < 0.05 || p.y > 0.95) p.vy *= -0.5;
+
+      ctx.beginPath();
+      ctx.arc(p.x * rw, p.y * rh, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(194,64,42,0.5)';
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// Preview 3: Prediction arrows
+(function() {
+  const c = document.getElementById('preview-3');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  let w, h, frame = 0;
+
+  function resize() {
+    const r = c.parentElement.getBoundingClientRect();
+    c.width = w = r.width * devicePixelRatio;
+    c.height = h = r.height * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+  resize();
+
+  function draw() {
+    const rw = w / devicePixelRatio, rh = h / devicePixelRatio;
+    ctx.clearRect(0, 0, rw, rh);
+
+    const pts = [
+      {x: 0.2, y: 0.6}, {x: 0.4, y: 0.35},
+      {x: 0.6, y: 0.55}, {x: 0.8, y: 0.3}
+    ];
+
+    // Context lines
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(pts[i].x * rw, pts[i].y * rh);
+      ctx.lineTo(pts[i+1].x * rw, pts[i+1].y * rh);
+      ctx.strokeStyle = i < 2 ? 'rgba(37,99,235,0.3)' : 'rgba(194,64,42,0.4)';
+      ctx.setLineDash(i < 2 ? [] : [4, 4]);
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Dots
+    pts.forEach((p, i) => {
+      const pulse = i === 3 ? 1 + 0.15 * Math.sin(frame * 0.05) : 1;
+      ctx.beginPath();
+      ctx.arc(p.x * rw, p.y * rh, 5 * pulse, 0, Math.PI * 2);
+      ctx.fillStyle = i < 3 ? 'rgba(37,99,235,0.6)' : 'rgba(194,64,42,0.7)';
+      ctx.fill();
+    });
+
+    frame++;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// Preview 4: Attention matrix
+(function() {
+  const c = document.getElementById('preview-4');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  let w, h, frame = 0;
+
+  function resize() {
+    const r = c.parentElement.getBoundingClientRect();
+    c.width = w = r.width * devicePixelRatio;
+    c.height = h = r.height * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+  resize();
+
+  function draw() {
+    const rw = w / devicePixelRatio, rh = h / devicePixelRatio;
+    ctx.clearRect(0, 0, rw, rh);
+
+    const n = 4, pad = 30;
+    const cellW = (rw - pad * 2) / n;
+    const cellH = (rh - pad * 2) / n;
+
+    for (let r = 0; r < n; r++) {
+      for (let cl = 0; cl < n; cl++) {
+        const x = pad + cl * cellW;
+        const y = pad + r * cellH;
+        if (cl <= r) {
+          const val = 0.2 + 0.6 * Math.abs(Math.sin((frame + r * 13 + cl * 7) * 0.02));
+          ctx.fillStyle = `rgba(37,99,235,${val * 0.7})`;
+        } else {
+          ctx.fillStyle = 'rgba(0,0,0,0.04)';
+        }
+        ctx.fillRect(x + 1, y + 1, cellW - 2, cellH - 2);
+      }
+    }
+    frame++;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// Preview 5: Loss curves
+(function() {
+  const c = document.getElementById('preview-5');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  let w, h, frame = 0;
+
+  function resize() {
+    const r = c.parentElement.getBoundingClientRect();
+    c.width = w = r.width * devicePixelRatio;
+    c.height = h = r.height * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+  resize();
+
+  function draw() {
+    const rw = w / devicePixelRatio, rh = h / devicePixelRatio;
+    ctx.clearRect(0, 0, rw, rh);
+
+    const pad = 20;
+    const plotW = rw - pad * 2;
+    const plotH = rh - pad * 2;
+
+    // Two loss curves
+    ctx.lineWidth = 1.5;
+
+    // Pred loss (blue) - decreasing
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(37,99,235,0.6)';
+    for (let i = 0; i <= 80; i++) {
+      const x = pad + (i / 80) * plotW;
+      const t = i / 80;
+      const y = pad + plotH * (0.15 + 0.7 * Math.exp(-t * 3) + 0.03 * Math.sin(t * 20 + frame * 0.02));
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // SIGReg loss (red) - decreasing differently
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(194,64,42,0.6)';
+    for (let i = 0; i <= 80; i++) {
+      const x = pad + (i / 80) * plotW;
+      const t = i / 80;
+      const y = pad + plotH * (0.3 + 0.5 * Math.exp(-t * 2) + 0.02 * Math.sin(t * 15 + frame * 0.03));
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    frame++;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ── Scroll reveal ──
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach((e, i) => {
+    if (e.isIntersecting) {
+      setTimeout(() => e.target.classList.add('visible'), i * 80);
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>

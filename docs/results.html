@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeWM × Synthetic Human Motion — Experiment Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1a1a2e;
+  --paper: #faf8f4;
+  --accent: #c44536;
+  --accent2: #2d6a4f;
+  --muted: #6b7280;
+  --border: #d4d0c8;
+  --code-bg: #f0ede6;
+  --highlight: #fff3cd;
+  --serif: 'Source Serif 4', 'Newsreader', Georgia, serif;
+  --mono: 'JetBrains Mono', 'Menlo', monospace;
+  --body: 'Newsreader', Georgia, serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { font-size: 18px; scroll-behavior: smooth; }
+
+body {
+  font-family: var(--body);
+  color: var(--ink);
+  background: var(--paper);
+  line-height: 1.72;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- Distill-style layout --- */
+.d-article {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 6rem;
+}
+
+.d-title {
+  padding: 4rem 0 2rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2.5rem;
+}
+
+.d-title h1 {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 2.4rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.8rem;
+}
+
+.d-title .subtitle {
+  font-family: var(--body);
+  font-weight: 300;
+  font-size: 1.15rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.d-byline {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-top: 1rem;
+  font-family: var(--mono);
+  letter-spacing: 0.02em;
+}
+
+.d-byline a { color: var(--accent); text-decoration: none; }
+
+/* --- Sections --- */
+h2 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1.55rem;
+  margin: 3rem 0 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1.15rem;
+  margin: 2rem 0 0.6rem;
+  color: var(--ink);
+}
+
+p { margin-bottom: 1.1rem; }
+
+strong { font-weight: 600; }
+
+em { font-style: italic; }
+
+a { color: var(--accent); }
+
+/* --- Aside / marginnote --- */
+.aside {
+  background: var(--code-bg);
+  border-left: 3px solid var(--accent);
+  padding: 0.9rem 1.2rem;
+  margin: 1.5rem 0;
+  font-size: 0.88rem;
+  border-radius: 0 4px 4px 0;
+}
+
+.aside strong { color: var(--accent); }
+
+/* --- Key finding highlight --- */
+.finding {
+  background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+  border: 1px solid #86efac;
+  border-radius: 6px;
+  padding: 1.2rem 1.5rem;
+  margin: 1.8rem 0;
+  position: relative;
+}
+
+.finding::before {
+  content: "KEY FINDING";
+  position: absolute;
+  top: -0.65rem;
+  left: 1rem;
+  background: var(--accent2);
+  color: white;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  letter-spacing: 0.08em;
+}
+
+/* --- Tables --- */
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  font-family: var(--mono);
+}
+
+thead th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  padding: 0.6rem 0.8rem;
+  border-bottom: 2px solid var(--ink);
+}
+
+tbody td {
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+tbody tr:hover { background: rgba(0,0,0,0.02); }
+
+.best {
+  color: var(--accent2);
+  font-weight: 500;
+  position: relative;
+}
+
+.best::after {
+  content: "best";
+  font-size: 0.55rem;
+  background: var(--accent2);
+  color: white;
+  padding: 0.05rem 0.3rem;
+  border-radius: 2px;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+  letter-spacing: 0.05em;
+}
+
+.worse { color: var(--accent); }
+
+/* --- Code --- */
+code {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  background: var(--code-bg);
+  padding: 0.12rem 0.35rem;
+  border-radius: 3px;
+}
+
+pre {
+  background: var(--ink);
+  color: #e2e8f0;
+  padding: 1.2rem 1.5rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+/* --- Charts --- */
+.chart-container {
+  margin: 2rem 0;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1.5rem;
+}
+
+.chart-container h4 {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+
+.bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 60px;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.bar-label {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  text-align: right;
+  color: var(--muted);
+}
+
+.bar-track {
+  height: 28px;
+  background: #f1f0ec;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+}
+
+.bar-fill.good { background: linear-gradient(90deg, #86efac, var(--accent2)); }
+.bar-fill.bad { background: linear-gradient(90deg, #fca5a5, var(--accent)); }
+.bar-fill.neutral { background: linear-gradient(90deg, #93c5fd, #3b82f6); }
+
+.bar-value {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: left;
+}
+
+/* --- Copy ratio gauge --- */
+.gauge-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  margin: 2rem 0;
+  flex-wrap: wrap;
+}
+
+.gauge {
+  text-align: center;
+  position: relative;
+}
+
+.gauge-ring {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.gauge-ring svg {
+  position: absolute;
+  top: 0; left: 0;
+  transform: rotate(-90deg);
+}
+
+.gauge-ring circle {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+
+.gauge-ring .track { stroke: #e5e7eb; }
+.gauge-ring .fill { transition: stroke-dashoffset 2s cubic-bezier(0.22, 1, 0.36, 1); }
+
+.gauge-value {
+  font-family: var(--mono);
+  font-size: 1.8rem;
+  font-weight: 500;
+  z-index: 1;
+}
+
+.gauge-label {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.gauge-sublabel {
+  font-family: var(--body);
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 0.2rem;
+}
+
+/* --- Architecture diagram --- */
+.arch-diagram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 2rem 0;
+  flex-wrap: wrap;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+.arch-box {
+  padding: 0.6rem 1rem;
+  border-radius: 5px;
+  text-align: center;
+  border: 1.5px solid;
+  position: relative;
+}
+
+.arch-box.encoder {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1e40af;
+}
+
+.arch-box.projector {
+  background: #fef3c7;
+  border-color: #d97706;
+  color: #92400e;
+}
+
+.arch-box.predictor {
+  background: #f0fdf4;
+  border-color: #16a34a;
+  color: #14532d;
+}
+
+.arch-box.loss {
+  background: #fef2f2;
+  border-color: #dc2626;
+  color: #991b1b;
+}
+
+.arch-arrow {
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+.arch-dim {
+  font-size: 0.6rem;
+  opacity: 0.7;
+  display: block;
+  margin-top: 0.15rem;
+}
+
+/* --- Timeline --- */
+.timeline {
+  position: relative;
+  padding-left: 2rem;
+  margin: 1.5rem 0;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 0.35rem;
+  top: 0.3rem;
+  bottom: 0.3rem;
+  width: 2px;
+  background: var(--border);
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 1.2rem;
+  padding-left: 0.5rem;
+}
+
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -1.82rem;
+  top: 0.45rem;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--paper);
+}
+
+.timeline-item.done::before { background: var(--accent2); }
+.timeline-item.running::before {
+  background: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2); }
+  50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.1); }
+}
+
+.timeline-date {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.timeline-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.timeline-detail {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* --- Footer --- */
+footer {
+  border-top: 1px solid var(--border);
+  padding-top: 2rem;
+  margin-top: 3rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* --- Responsive --- */
+@media (max-width: 680px) {
+  html { font-size: 16px; }
+  .d-title h1 { font-size: 1.8rem; }
+  .gauge-container { gap: 1rem; }
+  .gauge-ring { width: 110px; height: 110px; }
+  .bar-row { grid-template-columns: 80px 1fr 50px; }
+}
+
+/* --- Animate on scroll --- */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+</style>
+</head>
+<body>
+
+<article class="d-article">
+
+  <!-- Title -->
+  <header class="d-title">
+    <h1>Training a World Model on Synthetic Human Motion</h1>
+    <p class="subtitle">
+      Adapting LeWM's joint-embedding predictive architecture to learn dynamics
+      from rendered human animations, using body pose deltas as actions and
+      pretrained vision encoders.
+    </p>
+    <div class="d-byline">
+      <span>March 2026</span> &middot;
+      <span>Data: <a href="#">Prod_Renderings</a> (200 episodes, 96k frames)</span> &middot;
+      <span>GPU: NVIDIA H200</span>
+    </div>
+  </header>
+
+  <!-- Abstract -->
+  <section class="reveal">
+    <h2>Overview</h2>
+    <p>
+      We adapt <strong>LeWorldModel</strong> (LeWM)&thinsp;&mdash;&thinsp;a JEPA-based world model that trains
+      end-to-end from pixels with SIGReg regularization&thinsp;&mdash;&thinsp;to learn dynamics of
+      synthetic human motion renderings. The <em>actions</em> are frame-to-frame delta poses
+      of the body root (3D translation + 3D axis-angle rotation), extracted from the
+      <code>poses_beta0_world</code> and <code>trans_beta0_world</code> fields of the
+      production rendering pipeline's NPZ data.
+    </p>
+    <p>
+      We compare three encoder configurations: a <strong>ViT-Tiny trained from scratch</strong>
+      (the original LeWM approach), a <strong>frozen pretrained ViT-B/16</strong>, and an
+      <strong>unfrozen (fine-tuned) ViT-B/16</strong>. The key metric is the
+      <em>copy ratio</em>&thinsp;&mdash;&thinsp;whether the model predicts the next embedding better than
+      simply copying the current frame.
+    </p>
+  </section>
+
+  <!-- Architecture -->
+  <section class="reveal">
+    <h2>Architecture</h2>
+    <p>
+      The pipeline follows the LeWM JEPA architecture: an encoder maps frames to embeddings,
+      an action encoder maps delta poses to the same space, and an autoregressive predictor
+      forecasts the next embedding conditioned on actions via AdaLN-zero.
+    </p>
+
+    <div class="arch-diagram">
+      <div class="arch-box encoder">
+        Encoder<br>
+        <span class="arch-dim">ViT-Tiny (192d) or ViT-B/16 (768d)</span>
+      </div>
+      <span class="arch-arrow">&rarr;</span>
+      <div class="arch-box projector">
+        Projector<br>
+        <span class="arch-dim">MLP &rarr; 192d</span>
+      </div>
+      <span class="arch-arrow">&rarr;</span>
+      <div class="arch-box predictor">
+        AR Predictor<br>
+        <span class="arch-dim">6-layer Transformer + AdaLN</span>
+      </div>
+      <span class="arch-arrow">&rarr;</span>
+      <div class="arch-box loss">
+        MSE + SIGReg<br>
+        <span class="arch-dim">&lambda; = 0.09</span>
+      </div>
+    </div>
+
+    <div class="aside">
+      <strong>Action representation.</strong> Each action is a 6D root body delta:
+      <code>[&Delta;x, &Delta;y, &Delta;z, &Delta;r1, &Delta;r2, &Delta;r3]</code> (translation + axis-angle rotation).
+      With <code>frameskip=5</code> at 30 FPS, five consecutive deltas are concatenated into a 30D
+      vector per observation step, giving the model temporal context about the motion trajectory between frames.
+    </div>
+  </section>
+
+  <!-- Data -->
+  <section class="reveal">
+    <h2>Data Pipeline</h2>
+    <p>
+      Training data was fetched from the <strong>Prod_Renderings</strong> DynamoDB table,
+      which indexes synthetic human motion renderings. For each rendering, we downloaded
+      the compressed MP4 video from S3 (fast: ~200 episodes in 10 minutes) and the NPZ
+      feature file containing SMPL beta-0 body poses.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Property</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Episodes</td><td>200</td></tr>
+          <tr><td>Total frames</td><td>96,635</td></tr>
+          <tr><td>Frame resolution</td><td>224 &times; 224 (resized)</td></tr>
+          <tr><td>FPS (source)</td><td>30</td></tr>
+          <tr><td>Frameskip</td><td>5 (observe every ~167ms)</td></tr>
+          <tr><td>Action dim (raw)</td><td>6 (root &Delta;translation + &Delta;rotation)</td></tr>
+          <tr><td>Action dim (effective)</td><td>30 (5 &times; 6, concatenated)</td></tr>
+          <tr><td>Episode length</td><td>451&ndash;897 frames (mean 483)</td></tr>
+          <tr><td>HDF5 size</td><td>13 GB</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Key Result: Copy Ratio -->
+  <section class="reveal">
+    <h2>The Copy Ratio Metric</h2>
+    <p>
+      A world model that merely copies the last observed frame would achieve zero prediction
+      error in a static world. To measure whether the model actually <em>learns dynamics</em>,
+      we compute the <strong>copy ratio</strong>: the model's prediction MSE divided by the
+      MSE of simply repeating the last context frame. A ratio below 1.0 means the model
+      predicts better than copying&thinsp;&mdash;&thinsp;it understands something about how the scene changes.
+    </p>
+
+    <div class="gauge-container">
+      <div class="gauge">
+        <div class="gauge-ring">
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <circle class="track" cx="70" cy="70" r="58" />
+            <circle class="fill" cx="70" cy="70" r="58"
+                    stroke="#dc2626"
+                    stroke-dasharray="364.4"
+                    stroke-dashoffset="0"
+                    style="stroke-dashoffset: 364.4"
+                    data-target="28.5" />
+          </svg>
+          <span class="gauge-value" style="color: var(--accent)">4.56</span>
+        </div>
+        <div class="gauge-label">ViT-Tiny (scratch)</div>
+        <div class="gauge-sublabel">Worse than copy</div>
+      </div>
+
+      <div class="gauge">
+        <div class="gauge-ring">
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <circle class="track" cx="70" cy="70" r="58" />
+            <circle class="fill" cx="70" cy="70" r="58"
+                    stroke="var(--accent2)"
+                    stroke-dasharray="364.4"
+                    stroke-dashoffset="0"
+                    style="stroke-dashoffset: 364.4"
+                    data-target="306" />
+          </svg>
+          <span class="gauge-value" style="color: var(--accent2)">0.84</span>
+        </div>
+        <div class="gauge-label">ViT-B/16 (frozen)</div>
+        <div class="gauge-sublabel">Beats copy baseline</div>
+      </div>
+
+      <div class="gauge">
+        <div class="gauge-ring">
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <circle class="track" cx="70" cy="70" r="58" />
+            <circle class="fill" cx="70" cy="70" r="58"
+                    stroke="#f59e0b"
+                    stroke-dasharray="364.4"
+                    stroke-dashoffset="364.4"
+                    data-target="0" />
+          </svg>
+          <span class="gauge-value" style="color: #f59e0b">...</span>
+        </div>
+        <div class="gauge-label">ViT-B/16 (unfrozen)</div>
+        <div class="gauge-sublabel">Training in progress</div>
+      </div>
+    </div>
+
+    <div class="finding">
+      <p>
+        <strong>The frozen pretrained ViT-B/16 achieves a copy ratio of 0.84</strong>,
+        meaning it predicts the next frame embedding 16% better than simply copying.
+        This is the first configuration to beat the copy baseline. The ViT-Tiny trained
+        from scratch never achieved a ratio below 4.5&times;, regardless of SIGReg weight.
+      </p>
+    </div>
+  </section>
+
+  <!-- Encoder Comparison -->
+  <section class="reveal">
+    <h2>Encoder Comparison</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Encoder</th>
+            <th>Params</th>
+            <th>Val Pred Loss</th>
+            <th>Copy Baseline</th>
+            <th>Copy Ratio</th>
+            <th>SIGReg</th>
+            <th>Cos Sim</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>ViT-Tiny (scratch)</td>
+            <td>5.7M</td>
+            <td>0.000716</td>
+            <td>0.000157</td>
+            <td class="worse">4.56</td>
+            <td>&mdash;</td>
+            <td>&mdash;</td>
+          </tr>
+          <tr>
+            <td>ViT-B/16 (frozen)</td>
+            <td>86M*</td>
+            <td>0.003914</td>
+            <td>0.004651</td>
+            <td class="best">0.84</td>
+            <td>1.271</td>
+            <td>0.9982</td>
+          </tr>
+          <tr>
+            <td>ViT-B/16 (unfrozen)</td>
+            <td>86M</td>
+            <td colspan="5" style="color: var(--muted); font-style: italic; text-align: center;">Training in progress (epoch 3/30)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size: 0.8rem; color: var(--muted);">
+      * Frozen: only projector + predictor (~12M) are trainable. ViT-Tiny uses sigreg=0.001 (best from sweep).
+    </p>
+
+    <h3>Why the absolute losses differ</h3>
+    <p>
+      The ViT-Tiny has much lower absolute prediction loss (0.0007 vs 0.0039), but its
+      copy baseline is also far lower (0.00016 vs 0.0047). This means the tiny encoder
+      produces embeddings where consecutive frames are nearly identical&thinsp;&mdash;&thinsp;it hasn't
+      learned to distinguish visual changes. The pretrained ViT-B/16 produces embeddings
+      that actually capture frame-to-frame differences, making prediction harder but more
+      meaningful.
+    </p>
+  </section>
+
+  <!-- SIGReg Sweep -->
+  <section class="reveal">
+    <h2>SIGReg Weight Sweep</h2>
+    <p>
+      We swept the SIGReg regularization weight across an order of magnitude to understand
+      its effect on prediction quality. All trials used the ViT-Tiny encoder trained from
+      scratch for 9 epochs (checkpoints limited by disk).
+    </p>
+
+    <div class="chart-container">
+      <h4>Validation Prediction Loss by SIGReg Weight</h4>
+      <div class="bar-chart">
+        <div class="bar-row">
+          <span class="bar-label">&lambda; = 0.001</span>
+          <div class="bar-track">
+            <div class="bar-fill good" style="width: 16.5%"></div>
+          </div>
+          <span class="bar-value" style="color: var(--accent2)">0.000716</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">&lambda; = 0.005</span>
+          <div class="bar-track">
+            <div class="bar-fill neutral" style="width: 28.7%"></div>
+          </div>
+          <span class="bar-value">0.001243</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">&lambda; = 0.01</span>
+          <div class="bar-track">
+            <div class="bar-fill neutral" style="width: 35.0%"></div>
+          </div>
+          <span class="bar-value">0.001518</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">&lambda; = 0.03</span>
+          <div class="bar-track">
+            <div class="bar-fill neutral" style="width: 66.5%"></div>
+          </div>
+          <span class="bar-value">0.002882</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">&lambda; = 0.05</span>
+          <div class="bar-track">
+            <div class="bar-fill neutral" style="width: 78.4%"></div>
+          </div>
+          <span class="bar-value">0.003396</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">&lambda; = 0.09</span>
+          <div class="bar-track">
+            <div class="bar-fill bad" style="width: 100%"></div>
+          </div>
+          <span class="bar-value" style="color: var(--accent)">0.004332</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-container">
+      <h4>Copy Ratio (lower is better, &lt; 1.0 = beats copy)</h4>
+      <div class="bar-chart">
+        <div class="bar-row">
+          <span class="bar-label">&lambda; = 0.001</span>
+          <div class="bar-track">
+            <div class="bar-fill neutral" style="width: 94%"></div>
+          </div>
+          <span class="bar-value">4.56</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">&lambda; = 0.005</span>
+          <div class="bar-track">
+            <div class="bar-fill good" style="width: 91.7%"></div>
+          </div>
+          <span class="bar-value" style="color: var(--accent2)">4.45</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">&lambda; = 0.03</span>
+          <div class="bar-track">
+            <div class="bar-fill neutral" style="width: 94.4%"></div>
+          </div>
+          <span class="bar-value">4.58</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">&lambda; = 0.09</span>
+          <div class="bar-track">
+            <div class="bar-fill neutral" style="width: 95.4%"></div>
+          </div>
+          <span class="bar-value">4.63</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">&lambda; = 0.05</span>
+          <div class="bar-track">
+            <div class="bar-fill bad" style="width: 100%"></div>
+          </div>
+          <span class="bar-value" style="color: var(--accent)">4.85</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="aside">
+      <strong>Observation.</strong> Lower SIGReg weight yields lower absolute prediction loss (6&times; improvement
+      from &lambda;=0.09 to &lambda;=0.001), but the copy ratio remains flat at ~4.5&times; regardless.
+      This means the ViT-Tiny encoder&thinsp;&mdash;&thinsp;trained from scratch on only 200 episodes&thinsp;&mdash;&thinsp;never
+      learns to produce embeddings that capture meaningful visual dynamics, only learns to make
+      embeddings small enough that prediction errors are proportionally small.
+    </div>
+  </section>
+
+  <!-- Experiment Timeline -->
+  <section class="reveal">
+    <h2>Experiment Timeline</h2>
+    <div class="timeline">
+      <div class="timeline-item done">
+        <div class="timeline-date">Mar 25, 19:50</div>
+        <div class="timeline-title">Data pipeline validated</div>
+        <div class="timeline-detail">
+          3 episodes from Prod_Renderings, camera extrinsics (incorrect)
+        </div>
+      </div>
+      <div class="timeline-item done">
+        <div class="timeline-date">Mar 25, 20:40</div>
+        <div class="timeline-title">Corrected to body poses</div>
+        <div class="timeline-detail">
+          Switched from camera extrinsics to <code>poses_beta0_world</code> / <code>trans_beta0_world</code>
+        </div>
+      </div>
+      <div class="timeline-item done">
+        <div class="timeline-date">Mar 25, 20:51</div>
+        <div class="timeline-title">Overfit test passed</div>
+        <div class="timeline-detail">
+          pred_loss: 0.275 &rarr; 0.007 in 300 steps on a single batch
+        </div>
+      </div>
+      <div class="timeline-item done">
+        <div class="timeline-date">Mar 25, 23:01</div>
+        <div class="timeline-title">200 episodes fetched via video</div>
+        <div class="timeline-detail">
+          96,635 frames, 6D root deltas. MP4 download: ~10 min vs hours for individual PNGs
+        </div>
+      </div>
+      <div class="timeline-item done">
+        <div class="timeline-date">Mar 26, 01:09</div>
+        <div class="timeline-title">SIGReg sweep launched</div>
+        <div class="timeline-detail">
+          9 trials (&lambda; = 0.001&ndash;0.4), 30 epochs each, ViT-Tiny on H200
+        </div>
+      </div>
+      <div class="timeline-item done">
+        <div class="timeline-date">Mar 26, 11:11</div>
+        <div class="timeline-title">Pretrained ViT-B/16 checkpoint created</div>
+        <div class="timeline-detail">
+          86M params, ImageNet-21k pretrained via timm
+        </div>
+      </div>
+      <div class="timeline-item done">
+        <div class="timeline-date">Mar 26, 15:47</div>
+        <div class="timeline-title">Frozen ViT-B/16 training complete</div>
+        <div class="timeline-detail">
+          <strong>Copy ratio = 0.84</strong> &mdash; first model to beat the copy baseline
+        </div>
+      </div>
+      <div class="timeline-item running">
+        <div class="timeline-date">Mar 26, 15:47 &ndash; now</div>
+        <div class="timeline-title">Unfrozen ViT-B/16 training</div>
+        <div class="timeline-detail">
+          End-to-end fine-tuning, batch_size=32, lr=1e-5
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Technical Details -->
+  <section class="reveal">
+    <h2>Training Configuration</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>ViT-Tiny</th><th>ViT-B/16 Frozen</th><th>ViT-B/16 Unfrozen</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Encoder params</td><td>5.7M (trainable)</td><td>86M (frozen)</td><td>86M (trainable)</td></tr>
+          <tr><td>Total trainable</td><td>18M</td><td>~12M</td><td>~98M</td></tr>
+          <tr><td>embed_dim</td><td>192</td><td>192</td><td>192</td></tr>
+          <tr><td>Encoder hidden</td><td>192</td><td>768</td><td>768</td></tr>
+          <tr><td>Batch size</td><td>128</td><td>64</td><td>32</td></tr>
+          <tr><td>Learning rate</td><td>5e-5</td><td>5e-5</td><td>1e-5</td></tr>
+          <tr><td>Precision</td><td>bf16</td><td>bf16</td><td>bf16</td></tr>
+          <tr><td>Optimizer</td><td colspan="3">AdamW (weight_decay=1e-3)</td></tr>
+          <tr><td>Scheduler</td><td colspan="3">LinearWarmupCosineAnnealing</td></tr>
+          <tr><td>GPU</td><td colspan="3">NVIDIA H200 (144 GB)</td></tr>
+          <tr><td>VRAM used</td><td>~14 GB</td><td>~11 GB</td><td>~18 GB</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Data loading</h3>
+    <pre><code>python train.py data=prod_beta0_fs5 +wm.action_dim=6 \
+  encoder_type=vjepa vjepa_checkpoint=$CKPT \
+  encoder_frozen=true patch_size=16 \
+  trainer.max_epochs=30 loader.batch_size=64</code></pre>
+  </section>
+
+  <!-- Embedder Fix -->
+  <section class="reveal">
+    <h2>Implementation Notes</h2>
+
+    <h3>Embedder bottleneck fix</h3>
+    <p>
+      The original <code>Embedder</code> module had a hardcoded <code>smoothed_dim=10</code>,
+      compressing the 30D concatenated action vector to 10D before the MLP. We fixed this to
+      <code>smoothed_dim=max(effective_act_dim, 10)</code>, preserving all action information.
+    </p>
+
+    <h3>Dual-path encoder</h3>
+    <p>
+      We extended <code>jepa.py</code> to support both HuggingFace ViT (<code>pooling="cls"</code>,
+      CLS token extraction) and timm/VJEPA encoders (<code>pooling="mean"</code>, global average
+      pooling over patch tokens). The encoder type is selected via config without code changes.
+    </p>
+
+    <h3>ClearML integration</h3>
+    <p>
+      All experiments log to ClearML via direct <code>task.get_logger().report_scalar()</code> calls
+      (Lightning's <code>self.log_dict</code> is not auto-captured by ClearML without TensorBoard).
+      Each metric gets its own plot with train/validate as separate series.
+    </p>
+  </section>
+
+  <!-- Next Steps -->
+  <section class="reveal">
+    <h2>What's Next</h2>
+    <p>The unfrozen ViT-B/16 comparison is currently training. Pending results, the next directions are:</p>
+    <ul style="padding-left: 1.5rem; margin-bottom: 1rem;">
+      <li><strong>True VJEPA checkpoint</strong> &mdash; the current ViT-B/16 is ImageNet-pretrained via timm, not VJEPA. A video-pretrained VJEPA encoder may produce even more temporally-aware embeddings.</li>
+      <li><strong>More data</strong> &mdash; 200 episodes is small. The Prod_Renderings table has 26k+ renderings available.</li>
+      <li><strong>VAE embedding correlation</strong> &mdash; comparing frame embeddings against precomputed VAE latents to measure whether the world model's representation aligns with animation structure.</li>
+      <li><strong>Same-animation consistency</strong> &mdash; renderings sharing an <code>animation_id</code> (different camera/character) should ideally have similar frame embeddings.</li>
+      <li><strong>Longer training</strong> &mdash; 30 epochs may not be enough for the unfrozen encoder to converge.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>
+      Built on <a href="https://github.com/lucas-maes/le-wm">LeWorldModel</a>
+      (Maes, Le Lidec, Scieur, LeCun, Balestriero 2026).
+      Data from the synthetic rendering pipeline (Prod_Renderings).
+      Experiments tracked with <a href="https://clear.ml">ClearML</a>.
+    </p>
+  </footer>
+
+</article>
+
+<script>
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// Animate gauge rings
+function animateGauges() {
+  document.querySelectorAll('.gauge-ring .fill').forEach(circle => {
+    const target = parseFloat(circle.getAttribute('data-target'));
+    if (target > 0) {
+      setTimeout(() => {
+        circle.style.strokeDashoffset = 364.4 - target;
+      }, 500);
+    }
+  });
+}
+setTimeout(animateGauges, 800);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>05 &mdash; Training Dynamics &mdash; LeWM</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Source+Code+Pro:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+
+<style>
+/* ── Design Tokens ── */
+:root {
+  --bg: #faf9f6;
+  --bg-alt: #f3f0eb;
+  --text: #1a1a2e;
+  --text-secondary: #4a4a6a;
+  --text-muted: #8888a0;
+  --accent: #c2402a;
+  --accent-hover: #a03520;
+  --blue: #2563eb;
+  --green: #059669;
+  --violet: #7c3aed;
+  --amber: #d97706;
+  --border: #e0ddd5;
+  --card-shadow: 0 2px 8px rgba(26,26,46,0.06), 0 1px 3px rgba(26,26,46,0.04);
+
+  --font-serif: 'Spectral', Georgia, 'Times New Roman', serif;
+  --font-display: 'Newsreader', 'Spectral', Georgia, serif;
+  --font-mono: 'Source Code Pro', 'Menlo', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: 18px;
+  line-height: 1.78;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Article Container ── */
+.article {
+  max-width: 740px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ── Navigation ── */
+.back-link {
+  display: inline-block;
+  margin-top: 32px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+.back-link:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ── Header ── */
+header {
+  padding: 48px 0 40px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 48px;
+}
+
+.overline {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 14px;
+  display: block;
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--text);
+  margin-bottom: 18px;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 300;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  max-width: 620px;
+}
+
+/* ── Prose ── */
+.prose { margin-bottom: 40px; }
+.prose p {
+  margin-bottom: 18px;
+  color: var(--text-secondary);
+}
+.prose p:last-child { margin-bottom: 0; }
+.prose strong { color: var(--text); font-weight: 500; }
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--bg-alt);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent);
+}
+
+h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+h3 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 500;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+
+/* ── Margin Notes ── */
+.margin-note {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--text-muted);
+  line-height: 1.5;
+  border-left: 2px solid var(--border);
+  padding-left: 14px;
+  margin: 20px 0;
+  font-style: italic;
+}
+
+/* ── Figure Wrappers ── */
+.figure {
+  margin: 36px 0 48px;
+}
+
+.figure-wide {
+  margin-left: -60px;
+  margin-right: -60px;
+}
+
+@media (max-width: 860px) {
+  .figure-wide { margin-left: 0; margin-right: 0; }
+}
+
+.figure-inner {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+}
+
+.figure-canvas-wrap {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+figcaption {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+  line-height: 1.5;
+}
+
+figcaption strong {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* ── Controls ── */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-alt);
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ── Buttons ── */
+.btn-small {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: white;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-small:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-small.active {
+  background: var(--text);
+  color: white;
+  border-color: var(--text);
+}
+
+.btn-accent {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.btn-accent:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: white;
+}
+
+.preset-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: white;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.preset-btn:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+.preset-btn.active {
+  background: var(--blue);
+  color: white;
+  border-color: var(--blue);
+}
+
+/* ── Slider ── */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.slider-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* ── Hero canvas dual panel ── */
+.hero-panels {
+  display: flex;
+  gap: 0;
+  width: 100%;
+}
+.hero-panels canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.hero-left, .hero-right {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* ── Epoch counter ── */
+.epoch-display {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  min-width: 90px;
+}
+.epoch-display span {
+  color: var(--accent);
+}
+
+/* ── Speed buttons ── */
+.speed-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: white;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.speed-btn:hover { border-color: var(--text-muted); color: var(--text); }
+.speed-btn.active {
+  background: var(--text);
+  color: white;
+  border-color: var(--text);
+}
+
+/* ── Lambda slider row ── */
+.lambda-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-alt);
+}
+.lambda-row input[type="range"] {
+  width: 180px;
+}
+
+/* ── Tooltip for charts ── */
+.chart-tooltip {
+  position: absolute;
+  background: rgba(26,26,46,0.92);
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  pointer-events: none;
+  line-height: 1.6;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+/* ── Footer ── */
+footer {
+  margin: 80px 0 60px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+footer a:hover { text-decoration: underline; }
+
+/* ── Rollout canvas ── */
+.rollout-canvas-wrap {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── Section spacing ── */
+section {
+  margin-bottom: 56px;
+}
+section:last-of-type {
+  margin-bottom: 0;
+}
+</style>
+</head>
+<body>
+<div class="article">
+
+<a href="index.html" class="back-link">&larr; Back to all visualizations</a>
+
+<header>
+  <span class="overline">Interactive Exploration 05</span>
+  <h1>Training Dynamics</h1>
+  <p class="subtitle">Balancing prediction and regularization: how the single hyperparameter &lambda; shapes the learned embedding space during training.</p>
+</header>
+
+<!-- ════════════════ Section 1: Intro ════════════════ -->
+<section>
+<div class="prose">
+  <p>Training LeWM is a balancing act between two forces: the <strong>prediction loss</strong> wants to compress all embeddings into a small, predictable region, while <strong>SIGReg</strong> pushes them apart into a Gaussian cloud. The single hyperparameter <code>&lambda;</code> controls this balance. Too little regularization and the representation collapses; too much and it becomes random noise.</p>
+</div>
+
+<!-- ════════ Hero: Training Simulation ════════ -->
+<figure class="figure figure-wide">
+  <div class="figure-inner">
+    <div class="controls">
+      <div class="control-group">
+        <button id="heroPlayBtn" class="btn-small btn-accent">Play</button>
+        <button id="heroResetBtn" class="btn-small">Reset</button>
+      </div>
+      <div class="control-group">
+        <span class="control-label">Speed</span>
+        <button class="speed-btn active" data-speed="1">1x</button>
+        <button class="speed-btn" data-speed="2">2x</button>
+        <button class="speed-btn" data-speed="5">5x</button>
+        <button class="speed-btn" data-speed="10">10x</button>
+      </div>
+      <div class="control-group" style="margin-left: auto;">
+        <div class="epoch-display">Epoch: <span id="epochCounter">0</span> / 100</div>
+      </div>
+    </div>
+    <div class="lambda-row">
+      <span class="control-label">&lambda;</span>
+      <input type="range" id="lambdaSlider" min="0" max="50" value="9" step="1">
+      <span class="slider-value" id="lambdaValue">0.09</span>
+      <div class="control-group" style="margin-left: 8px; gap: 6px;">
+        <button class="preset-btn" data-lambda="0">Collapse (&lambda;=0)</button>
+        <button class="preset-btn active" data-lambda="9">Sweet Spot (&lambda;=0.09)</button>
+        <button class="preset-btn" data-lambda="50">Too Strong (&lambda;=0.5)</button>
+      </div>
+    </div>
+    <div class="figure-canvas-wrap" style="padding: 0;">
+      <div class="hero-panels">
+        <div class="hero-left">
+          <canvas id="lossCanvas" width="345" height="320"></canvas>
+        </div>
+        <div class="hero-right">
+          <canvas id="embedCanvas" width="345" height="320"></canvas>
+        </div>
+      </div>
+    </div>
+    <figcaption><strong>Figure 1.</strong> Live training simulation. Left: loss curves evolve epoch by epoch. Right: embedding space particles respond to the balance between prediction and regularization. Drag the &lambda; slider or click a preset to restart.</figcaption>
+  </div>
+</figure>
+</section>
+
+<!-- ════════════════ Section 2: Post-hero text ════════════════ -->
+<section>
+<div class="prose">
+  <p>The default <code>&lambda; = 0.09</code> was found to work well across all tested environments &mdash; PushT, TwoRoom, Reacher, and Cube. This robustness to a single hyperparameter is one of LeWM's key advantages over prior JEPAs that required tuning six loss weights.</p>
+</div>
+
+<!-- ════════ Lambda Sensitivity ════════ -->
+<figure class="figure figure-wide">
+  <div class="figure-inner">
+    <div class="figure-canvas-wrap" style="position: relative;">
+      <canvas id="sensitivityCanvas" width="740" height="320"></canvas>
+      <div class="chart-tooltip" id="sensitivityTooltip"></div>
+    </div>
+    <figcaption><strong>Figure 2.</strong> Lambda sensitivity analysis. The U-shaped curve shows that both extremes produce poor representations &mdash; the sweet spot near &lambda; = 0.09 balances prediction quality and embedding diversity. Hover to inspect component losses.</figcaption>
+  </div>
+</figure>
+</section>
+
+<!-- ════════════════ Section 3: Before rollout ════════════════ -->
+<section>
+<div class="prose">
+  <p>At inference time, the trained predictor unrolls predictions <strong>autoregressively</strong>. Starting from a window of real observations, it predicts the next embedding, shifts the window forward, and repeats. Each prediction feeds into the next, creating a chain of latent-space forecasts that a planner uses to evaluate candidate action sequences.</p>
+</div>
+
+<!-- ════════ Autoregressive Rollout ════════ -->
+<figure class="figure figure-wide">
+  <div class="figure-inner">
+    <div class="controls">
+      <div class="control-group">
+        <button id="rolloutStepBtn" class="btn-small btn-accent">Step</button>
+        <button id="rolloutAutoBtn" class="btn-small">Auto-play</button>
+        <button id="rolloutResetBtn" class="btn-small">Reset</button>
+      </div>
+      <div class="control-group" style="margin-left: auto;">
+        <span class="control-label">Speed</span>
+        <input type="range" id="rolloutSpeed" min="1" max="5" value="3" style="width: 80px;">
+      </div>
+    </div>
+    <div class="rollout-canvas-wrap">
+      <canvas id="rolloutCanvas" width="740" height="300"></canvas>
+    </div>
+    <figcaption><strong>Figure 3.</strong> Autoregressive rollout from <code>jepa.py</code>. The sliding context window (blue outline, size&nbsp;=&nbsp;3) advances forward. Solid dots are real observations; dashed-outline dots are predicted embeddings that accumulate prediction error with each step.</figcaption>
+  </div>
+</figure>
+</section>
+
+<!-- ════════════════ Section 4: After rollout ════════════════ -->
+<section>
+<div class="prose">
+  <p>Error accumulates with each autoregressive step &mdash; the predicted embeddings drift further from where real observations would land. This is why the planning horizon matters: longer horizons require more accurate predictions. LeWM's compact <strong>192-dim embedding space</strong> helps control this drift.</p>
+</div>
+
+<!-- ════════ LR Schedule ════════ -->
+<figure class="figure">
+  <div class="figure-inner">
+    <div class="figure-canvas-wrap" style="position: relative;">
+      <canvas id="lrCanvas" width="660" height="240"></canvas>
+      <div class="chart-tooltip" id="lrTooltip"></div>
+    </div>
+    <figcaption><strong>Figure 4.</strong> Learning rate schedule: <code>LinearWarmupCosineAnnealingLR</code>. A brief linear ramp-up (5 epochs) is followed by smooth cosine decay to near zero. Hover to see the exact learning rate at each epoch.</figcaption>
+  </div>
+</figure>
+</section>
+
+<div class="margin-note">
+  Training uses AdamW with lr&nbsp;=&nbsp;5&times;10<sup>&minus;5</sup>, weight decay&nbsp;=&nbsp;10<sup>&minus;3</sup>, gradient clipping at 1.0, and bf16 precision for 100 epochs. The total loss is <code>pred_loss + &lambda;&nbsp;&times;&nbsp;sigreg_loss</code>.
+</div>
+
+<footer>
+  <a href="index.html">LeWM Interactive Explorations</a>
+</footer>
+
+</div><!-- .article -->
+
+<script>
+// ═══════════════════════════════════════════════════════
+// UTILITY FUNCTIONS
+// ═══════════════════════════════════════════════════════
+const DPR = window.devicePixelRatio || 1;
+
+function setupCanvas(canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const w = canvas.width;
+  const h = canvas.height;
+  canvas.width = w * DPR;
+  canvas.height = h * DPR;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(DPR, DPR);
+  return { ctx, w, h };
+}
+
+function seededRandom(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 1103515245 + 12345) & 0x7fffffff;
+    return s / 0x7fffffff;
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+// COLOR & STYLE CONSTANTS
+// ═══════════════════════════════════════════════════════
+const C = {
+  bg: '#faf9f6',
+  text: '#1a1a2e',
+  textSec: '#4a4a6a',
+  muted: '#8888a0',
+  border: '#e0ddd5',
+  blue: '#2563eb',
+  red: '#c2402a',
+  green: '#059669',
+  amber: '#d97706',
+  violet: '#7c3aed',
+  white: '#ffffff',
+};
+
+// ═══════════════════════════════════════════════════════
+// 1. HERO TRAINING SIMULATION
+// ═══════════════════════════════════════════════════════
+(function() {
+  const lossC = setupCanvas(document.getElementById('lossCanvas'));
+  const embedC = setupCanvas(document.getElementById('embedCanvas'));
+
+  // State
+  let lambda = 0.09;
+  let currentEpoch = 0;
+  let playing = false;
+  let speed = 1;
+  let animFrameId = null;
+  let lastFrameTime = 0;
+
+  // Precomputed loss data for 101 epochs (0..100)
+  let lossData = { pred: [], sigreg: [], total: [] };
+
+  // Particle state for embedding visualization
+  const NUM_PARTICLES = 40;
+  let particles = [];
+
+  // RNG for deterministic noise per lambda
+  function makeLossNoise(lam) {
+    const rng = seededRandom(Math.round(lam * 1000) + 42);
+    const n = [];
+    for (let i = 0; i <= 100; i++) n.push((rng() - 0.5) * 0.02);
+    return n;
+  }
+
+  function computeLossCurves(lam) {
+    const noise = makeLossNoise(lam);
+    const noise2 = makeLossNoise(lam + 1000);
+    const pred = [], sigreg = [], total = [];
+
+    for (let e = 0; e <= 100; e++) {
+      let p, s;
+
+      if (lam <= 0.001) {
+        // Collapse: pred drops to near-0 fast, sigreg grows
+        p = 0.8 * Math.exp(-e / 5) + noise[e] * 0.5;
+        s = 2.0 * (1 - Math.exp(-e / 10)) + noise2[e] * 0.3;
+      } else if (lam >= 0.49) {
+        // Too strong: pred stays high, sigreg drops to near-0
+        p = 0.8 * Math.exp(-e / 80) + 0.4 + noise[e] * 0.3;
+        s = 1.0 * Math.exp(-e / 5) + noise2[e] * 0.2;
+      } else {
+        // Interpolate between regimes
+        // sweet spot at ~0.09
+        const distFromSweet = Math.abs(lam - 0.09);
+        const sweetWeight = Math.exp(-distFromSweet * distFromSweet / 0.005);
+
+        // sweet spot curves
+        const p_sweet = 0.8 * Math.exp(-e / 25) + 0.05;
+        const s_sweet = 1.0 * Math.exp(-e / 20) + 0.1;
+
+        // collapse-leaning (low lambda)
+        const collapseWeight = Math.max(0, 1 - lam / 0.09);
+        const p_collapse = 0.8 * Math.exp(-e / (5 + lam * 200)) + lam * 0.3;
+        const s_collapse = 2.0 * (1 - Math.exp(-e / (10 + lam * 50)));
+
+        // too-strong-leaning (high lambda)
+        const strongWeight = Math.max(0, (lam - 0.09) / 0.41);
+        const p_strong = 0.8 * Math.exp(-e / (25 + strongWeight * 55)) + 0.05 + strongWeight * 0.35;
+        const s_strong = 1.0 * Math.exp(-e / (20 - strongWeight * 15));
+
+        if (lam < 0.09) {
+          const t = lam / 0.09; // 0 at collapse, 1 at sweet spot
+          const blend = t * t; // quadratic easing
+          p = p_collapse * (1 - blend) + p_sweet * blend;
+          s = s_collapse * (1 - blend) + s_sweet * blend;
+        } else {
+          const t = (lam - 0.09) / 0.41; // 0 at sweet spot, 1 at too-strong
+          const blend = t;
+          p = p_sweet * (1 - blend) + p_strong * blend;
+          s = s_sweet * (1 - blend) + s_strong * blend;
+        }
+
+        p += noise[e] * 0.15;
+        s += noise2[e] * 0.15;
+      }
+
+      p = Math.max(0, p);
+      s = Math.max(0, s);
+      pred.push(p);
+      sigreg.push(s);
+      total.push(p + lam * s);
+    }
+
+    return { pred, sigreg, total };
+  }
+
+  function initParticles() {
+    const rng = seededRandom(7);
+    particles = [];
+    for (let i = 0; i < NUM_PARTICLES; i++) {
+      particles.push({
+        x: (rng() - 0.5) * 0.6,
+        y: (rng() - 0.5) * 0.6,
+        targetX: 0,
+        targetY: 0,
+        vx: 0,
+        vy: 0,
+      });
+    }
+    updateParticleTargets();
+  }
+
+  function updateParticleTargets() {
+    const rng = seededRandom(Math.round(lambda * 1000) + 99);
+    const progress = currentEpoch / 100;
+
+    for (let i = 0; i < NUM_PARTICLES; i++) {
+      const p = particles[i];
+
+      if (lambda <= 0.001) {
+        // Collapse: everything converges to center
+        const collapse = Math.min(1, progress * 3);
+        p.targetX = (rng() - 0.5) * 0.05 * (1 - collapse) + (rng() - 0.5) * 0.02;
+        p.targetY = (rng() - 0.5) * 0.05 * (1 - collapse) + (rng() - 0.5) * 0.02;
+      } else if (lambda >= 0.4) {
+        // Too high: random scatter
+        p.targetX = (rng() - 0.5) * 1.6;
+        p.targetY = (rng() - 0.5) * 1.6;
+      } else {
+        // Nice Gaussian-like distribution
+        // Box-Muller
+        const u1 = Math.max(0.0001, rng());
+        const u2 = rng();
+        const radius = Math.sqrt(-2 * Math.log(u1));
+        const theta = 2 * Math.PI * u2;
+        const spread = 0.25 + (Math.abs(lambda - 0.09) / 0.09) * 0.15;
+        p.targetX = radius * Math.cos(theta) * spread;
+        p.targetY = radius * Math.sin(theta) * spread;
+      }
+    }
+  }
+
+  function resetSimulation() {
+    currentEpoch = 0;
+    lossData = computeLossCurves(lambda);
+    initParticles();
+    document.getElementById('epochCounter').textContent = '0';
+    drawLoss();
+    drawEmbed();
+  }
+
+  // ── Loss Canvas Drawing ──
+  function drawLoss() {
+    const { ctx, w, h } = lossC;
+    ctx.clearRect(0, 0, w, h);
+
+    // Margins
+    const ml = 56, mr = 20, mt = 28, mb = 44;
+    const pw = w - ml - mr;
+    const ph = h - mt - mb;
+
+    // Background
+    ctx.fillStyle = C.white;
+    ctx.fillRect(0, 0, w, h);
+
+    // Title
+    ctx.fillStyle = C.textSec;
+    ctx.font = '500 13px "Source Code Pro", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Loss Curves', w / 2, 18);
+
+    // Determine y range
+    let yMax = 0.5;
+    for (let i = 0; i <= currentEpoch; i++) {
+      yMax = Math.max(yMax, lossData.pred[i] || 0, lossData.sigreg[i] || 0, lossData.total[i] || 0);
+    }
+    // Also look ahead for full potential
+    for (let i = 0; i <= 100; i++) {
+      yMax = Math.max(yMax, lossData.pred[i] || 0, lossData.sigreg[i] || 0, lossData.total[i] || 0);
+    }
+    yMax = Math.ceil(yMax * 5) / 5 + 0.1;
+    yMax = Math.max(yMax, 0.6);
+
+    // Grid
+    ctx.strokeStyle = '#eee';
+    ctx.lineWidth = 1;
+    const yTicks = 5;
+    for (let i = 0; i <= yTicks; i++) {
+      const yVal = (yMax / yTicks) * i;
+      const yPx = mt + ph - (yVal / yMax) * ph;
+      ctx.beginPath();
+      ctx.moveTo(ml, yPx);
+      ctx.lineTo(ml + pw, yPx);
+      ctx.stroke();
+
+      ctx.fillStyle = C.muted;
+      ctx.font = '11px "Source Code Pro", monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(yVal.toFixed(1), ml - 8, yPx + 4);
+    }
+
+    // X ticks
+    const xTicks = [0, 20, 40, 60, 80, 100];
+    for (const xt of xTicks) {
+      const xPx = ml + (xt / 100) * pw;
+      ctx.beginPath();
+      ctx.moveTo(xPx, mt);
+      ctx.lineTo(xPx, mt + ph);
+      ctx.stroke();
+
+      ctx.fillStyle = C.muted;
+      ctx.font = '11px "Source Code Pro", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(xt.toString(), xPx, mt + ph + 18);
+    }
+
+    // Axes
+    ctx.strokeStyle = C.border;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(ml, mt);
+    ctx.lineTo(ml, mt + ph);
+    ctx.lineTo(ml + pw, mt + ph);
+    ctx.stroke();
+
+    // Axis labels
+    ctx.fillStyle = C.muted;
+    ctx.font = '11px "Source Code Pro", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Epoch', ml + pw / 2, h - 6);
+
+    ctx.save();
+    ctx.translate(14, mt + ph / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Loss', 0, 0);
+    ctx.restore();
+
+    // Draw lines
+    if (currentEpoch > 0) {
+      const lines = [
+        { data: lossData.pred, color: C.blue, label: 'pred_loss' },
+        { data: lossData.sigreg, color: C.red, label: 'sigreg_loss' },
+        { data: lossData.total, color: C.amber, label: 'total_loss' },
+      ];
+
+      for (const line of lines) {
+        ctx.beginPath();
+        ctx.strokeStyle = line.color;
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+
+        for (let i = 0; i <= currentEpoch; i++) {
+          const xPx = ml + (i / 100) * pw;
+          const yPx = mt + ph - (Math.max(0, line.data[i]) / yMax) * ph;
+          if (i === 0) ctx.moveTo(xPx, yPx);
+          else ctx.lineTo(xPx, yPx);
+        }
+        ctx.stroke();
+      }
+
+      // Legend (background box + labels)
+      const legendX = ml + pw - 130;
+      const legendY = mt + 8;
+      const legendH = lines.length * 18 + 8;
+      ctx.fillStyle = 'rgba(255,255,255,0.88)';
+      ctx.fillRect(legendX - 6, legendY - 10, 136, legendH);
+      ctx.strokeStyle = '#eee';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(legendX - 6, legendY - 10, 136, legendH);
+      ctx.font = '11px "Source Code Pro", monospace';
+      ctx.textAlign = 'left';
+
+      for (let i = 0; i < lines.length; i++) {
+        const ly = legendY + i * 18;
+        ctx.fillStyle = lines[i].color;
+        ctx.fillRect(legendX, ly - 4, 14, 3);
+        ctx.fillStyle = C.textSec;
+        ctx.fillText(lines[i].label, legendX + 20, ly);
+      }
+    }
+
+    // Current epoch marker
+    if (currentEpoch > 0 && currentEpoch <= 100) {
+      const xPx = ml + (currentEpoch / 100) * pw;
+      ctx.strokeStyle = 'rgba(26,26,46,0.15)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(xPx, mt);
+      ctx.lineTo(xPx, mt + ph);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // ── Embedding Canvas Drawing ──
+  function drawEmbed() {
+    const { ctx, w, h } = embedC;
+    ctx.clearRect(0, 0, w, h);
+
+    ctx.fillStyle = C.white;
+    ctx.fillRect(0, 0, w, h);
+
+    // Title
+    ctx.fillStyle = C.textSec;
+    ctx.font = '500 13px "Source Code Pro", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Embedding Space', w / 2, 18);
+
+    const cx = w / 2;
+    const cy = h / 2 + 8;
+    const scale = Math.min(w, h) * 0.32;
+
+    // Grid circles
+    ctx.strokeStyle = '#eee';
+    ctx.lineWidth = 1;
+    for (let r = 1; r <= 3; r++) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, scale * r * 0.33, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Crosshairs
+    ctx.beginPath();
+    ctx.moveTo(cx - scale, cy);
+    ctx.lineTo(cx + scale, cy);
+    ctx.moveTo(cx, cy - scale);
+    ctx.lineTo(cx, cy + scale);
+    ctx.stroke();
+
+    // Animate particles toward targets
+    const progress = currentEpoch / 100;
+    for (const p of particles) {
+      const ease = 0.08;
+      p.x += (p.targetX - p.x) * ease;
+      p.y += (p.targetY - p.y) * ease;
+
+      // Draw particle
+      const px = cx + p.x * scale;
+      const py = cy + p.y * scale;
+
+      // Color based on regime
+      let color;
+      if (lambda <= 0.001) {
+        color = C.red; // collapse = danger red
+      } else if (lambda >= 0.4) {
+        color = C.violet; // too random = violet
+      } else {
+        color = C.blue; // good = blue
+      }
+
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(px, py, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Subtle glow
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.3;
+      ctx.beginPath();
+      ctx.arc(px, py, 8, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    // Regime label
+    let regimeLabel = '';
+    let regimeColor = C.textSec;
+    if (lambda <= 0.001) {
+      regimeLabel = 'COLLAPSED';
+      regimeColor = C.red;
+    } else if (lambda < 0.03) {
+      regimeLabel = 'NEAR COLLAPSE';
+      regimeColor = C.red;
+    } else if (lambda >= 0.05 && lambda <= 0.15) {
+      regimeLabel = 'HEALTHY';
+      regimeColor = C.green;
+    } else if (lambda > 0.3) {
+      regimeLabel = 'RANDOM SCATTER';
+      regimeColor = C.violet;
+    } else if (lambda > 0.15) {
+      regimeLabel = 'OVER-REGULARIZED';
+      regimeColor = C.amber;
+    } else {
+      regimeLabel = 'UNDER-REGULARIZED';
+      regimeColor = C.amber;
+    }
+
+    ctx.fillStyle = regimeColor;
+    ctx.font = '600 11px "Source Code Pro", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(regimeLabel, cx, h - 14);
+  }
+
+  // ── Animation Loop ──
+  function tick(ts) {
+    if (!playing) return;
+
+    if (!lastFrameTime) lastFrameTime = ts;
+    const dt = ts - lastFrameTime;
+
+    // epoch every ~80ms at 1x
+    const interval = 80 / speed;
+
+    if (dt >= interval) {
+      lastFrameTime = ts;
+      if (currentEpoch < 100) {
+        currentEpoch++;
+        document.getElementById('epochCounter').textContent = currentEpoch;
+        updateParticleTargets();
+        drawLoss();
+        drawEmbed();
+      } else {
+        playing = false;
+        document.getElementById('heroPlayBtn').textContent = 'Play';
+      }
+    } else {
+      // still animate particles smoothly
+      drawEmbed();
+    }
+
+    animFrameId = requestAnimationFrame(tick);
+  }
+
+  // ── Controls ──
+  document.getElementById('heroPlayBtn').addEventListener('click', function() {
+    if (currentEpoch >= 100) {
+      resetSimulation();
+    }
+    playing = !playing;
+    this.textContent = playing ? 'Pause' : 'Play';
+    if (playing) {
+      lastFrameTime = 0;
+      animFrameId = requestAnimationFrame(tick);
+    }
+  });
+
+  document.getElementById('heroResetBtn').addEventListener('click', function() {
+    playing = false;
+    document.getElementById('heroPlayBtn').textContent = 'Play';
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    resetSimulation();
+  });
+
+  document.querySelectorAll('.speed-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      speed = parseInt(this.dataset.speed);
+    });
+  });
+
+  const lambdaSlider = document.getElementById('lambdaSlider');
+  const lambdaValueEl = document.getElementById('lambdaValue');
+
+  lambdaSlider.addEventListener('input', function() {
+    lambda = this.value / 100;
+    lambdaValueEl.textContent = lambda.toFixed(2);
+    // Update preset buttons
+    document.querySelectorAll('.preset-btn').forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.lambda) === parseInt(lambdaSlider.value));
+    });
+    playing = false;
+    document.getElementById('heroPlayBtn').textContent = 'Play';
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    resetSimulation();
+  });
+
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const val = parseInt(this.dataset.lambda);
+      lambdaSlider.value = val;
+      lambda = val / 100;
+      lambdaValueEl.textContent = lambda.toFixed(2);
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      playing = false;
+      document.getElementById('heroPlayBtn').textContent = 'Play';
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      resetSimulation();
+    });
+  });
+
+  // Init
+  resetSimulation();
+})();
+
+
+// ═══════════════════════════════════════════════════════
+// 2. LAMBDA SENSITIVITY ANALYSIS
+// ═══════════════════════════════════════════════════════
+(function() {
+  const { ctx, w, h } = setupCanvas(document.getElementById('sensitivityCanvas'));
+  const tooltip = document.getElementById('sensitivityTooltip');
+  const canvas = document.getElementById('sensitivityCanvas');
+
+  const ml = 60, mr = 30, mt = 30, mb = 50;
+  const pw = w - ml - mr;
+  const ph = h - mt - mb;
+
+  // Compute final losses at epoch 100 for each lambda
+  const lambdaVals = [];
+  const predFinal = [];
+  const sigregFinal = [];
+  const totalFinal = [];
+
+  for (let li = 0; li <= 50; li++) {
+    const lam = li / 100;
+    lambdaVals.push(lam);
+
+    // Use same loss model as hero
+    const rng1 = seededRandom(Math.round(lam * 1000) + 42);
+    const rng2 = seededRandom(Math.round(lam * 1000) + 1042);
+
+    let p, s;
+    const e = 100;
+
+    if (lam <= 0.001) {
+      p = 0.8 * Math.exp(-e / 5);
+      s = 2.0 * (1 - Math.exp(-e / 10));
+    } else if (lam >= 0.49) {
+      p = 0.8 * Math.exp(-e / 80) + 0.4;
+      s = 1.0 * Math.exp(-e / 5);
+    } else {
+      if (lam < 0.09) {
+        const t = lam / 0.09;
+        const blend = t * t;
+        const p_collapse = 0.8 * Math.exp(-e / (5 + lam * 200)) + lam * 0.3;
+        const s_collapse = 2.0 * (1 - Math.exp(-e / (10 + lam * 50)));
+        const p_sweet = 0.8 * Math.exp(-e / 25) + 0.05;
+        const s_sweet = 1.0 * Math.exp(-e / 20) + 0.1;
+        p = p_collapse * (1 - blend) + p_sweet * blend;
+        s = s_collapse * (1 - blend) + s_sweet * blend;
+      } else {
+        const t = (lam - 0.09) / 0.41;
+        const blend = t;
+        const strongWeight = t;
+        const p_sweet = 0.8 * Math.exp(-e / 25) + 0.05;
+        const s_sweet = 1.0 * Math.exp(-e / 20) + 0.1;
+        const p_strong = 0.8 * Math.exp(-e / (25 + strongWeight * 55)) + 0.05 + strongWeight * 0.35;
+        const s_strong = 1.0 * Math.exp(-e / (20 - strongWeight * 15));
+        p = p_sweet * (1 - blend) + p_strong * blend;
+        s = s_sweet * (1 - blend) + s_strong * blend;
+      }
+    }
+
+    p = Math.max(0, p);
+    s = Math.max(0, s);
+    predFinal.push(p);
+    sigregFinal.push(s);
+    // "representation quality" = total loss (lower is better for sweet spot display)
+    // But we want U-shape, so use total loss with effective penalty
+    totalFinal.push(p + lam * s);
+  }
+
+  // Use a "representation quality" metric = inverse of (pred_loss + sigreg_loss_impact)
+  // Actually: use pred + 0.3*sigreg as "quality penalty" to get U-shape
+  const qualityPenalty = [];
+  for (let i = 0; i < lambdaVals.length; i++) {
+    // Quality metric: higher = worse. Combine pred_loss with sigreg indicator
+    // Low lambda: high sigreg = collapse = bad
+    // High lambda: high pred = bad
+    qualityPenalty.push(predFinal[i] + 0.3 * sigregFinal[i]);
+  }
+
+  const yMax = Math.ceil(Math.max(...qualityPenalty) * 5) / 5 + 0.1;
+
+  function draw(hoverIdx) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = C.white;
+    ctx.fillRect(0, 0, w, h);
+
+    // Shaded regions
+    // Collapse zone: lambda < 0.03
+    const x_03 = ml + (0.03 / 0.5) * pw;
+    ctx.fillStyle = 'rgba(194,64,42,0.06)';
+    ctx.fillRect(ml, mt, x_03 - ml, ph);
+
+    // Sweet spot: 0.05-0.15
+    const x_05 = ml + (0.05 / 0.5) * pw;
+    const x_15 = ml + (0.15 / 0.5) * pw;
+    ctx.fillStyle = 'rgba(5,150,105,0.06)';
+    ctx.fillRect(x_05, mt, x_15 - x_05, ph);
+
+    // Random zone: lambda > 0.3
+    const x_30 = ml + (0.30 / 0.5) * pw;
+    ctx.fillStyle = 'rgba(124,58,237,0.06)';
+    ctx.fillRect(x_30, mt, ml + pw - x_30, ph);
+
+    // Zone labels
+    ctx.font = '500 10px "Source Code Pro", monospace';
+    ctx.textAlign = 'center';
+
+    ctx.fillStyle = 'rgba(194,64,42,0.5)';
+    ctx.fillText('Collapse', ml + (x_03 - ml) / 2, mt + 16);
+    ctx.fillText('zone', ml + (x_03 - ml) / 2, mt + 28);
+
+    ctx.fillStyle = 'rgba(5,150,105,0.5)';
+    ctx.fillText('Sweet', (x_05 + x_15) / 2, mt + 16);
+    ctx.fillText('spot', (x_05 + x_15) / 2, mt + 28);
+
+    ctx.fillStyle = 'rgba(124,58,237,0.5)';
+    ctx.fillText('Random', (x_30 + ml + pw) / 2, mt + 16);
+    ctx.fillText('zone', (x_30 + ml + pw) / 2, mt + 28);
+
+    // Grid
+    ctx.strokeStyle = '#eee';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 5; i++) {
+      const yVal = (yMax / 5) * i;
+      const yPx = mt + ph - (yVal / yMax) * ph;
+      ctx.beginPath();
+      ctx.moveTo(ml, yPx);
+      ctx.lineTo(ml + pw, yPx);
+      ctx.stroke();
+
+      ctx.fillStyle = C.muted;
+      ctx.font = '11px "Source Code Pro", monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(yVal.toFixed(1), ml - 8, yPx + 4);
+    }
+
+    // Axes
+    ctx.strokeStyle = C.border;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(ml, mt);
+    ctx.lineTo(ml, mt + ph);
+    ctx.lineTo(ml + pw, mt + ph);
+    ctx.stroke();
+
+    // X axis ticks
+    for (let v = 0; v <= 0.5; v += 0.1) {
+      const xPx = ml + (v / 0.5) * pw;
+      ctx.fillStyle = C.muted;
+      ctx.font = '11px "Source Code Pro", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(v.toFixed(1), xPx, mt + ph + 20);
+    }
+
+    // Axis labels
+    ctx.fillStyle = C.muted;
+    ctx.font = '12px "Source Code Pro", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('\u03bb (lambda)', ml + pw / 2, h - 8);
+
+    ctx.save();
+    ctx.translate(16, mt + ph / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Loss at epoch 100', 0, 0);
+    ctx.restore();
+
+    // Draw the U-shaped curve (area fill)
+    ctx.beginPath();
+    ctx.moveTo(ml, mt + ph);
+    for (let i = 0; i < qualityPenalty.length; i++) {
+      const xPx = ml + (lambdaVals[i] / 0.5) * pw;
+      const yPx = mt + ph - (qualityPenalty[i] / yMax) * ph;
+      ctx.lineTo(xPx, yPx);
+    }
+    ctx.lineTo(ml + pw, mt + ph);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(37,99,235,0.06)';
+    ctx.fill();
+
+    // Draw the line
+    ctx.beginPath();
+    ctx.strokeStyle = C.blue;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    for (let i = 0; i < qualityPenalty.length; i++) {
+      const xPx = ml + (lambdaVals[i] / 0.5) * pw;
+      const yPx = mt + ph - (qualityPenalty[i] / yMax) * ph;
+      if (i === 0) ctx.moveTo(xPx, yPx);
+      else ctx.lineTo(xPx, yPx);
+    }
+    ctx.stroke();
+
+    // Vertical line at lambda=0.09
+    const x_09 = ml + (0.09 / 0.5) * pw;
+    ctx.strokeStyle = C.green;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(x_09, mt);
+    ctx.lineTo(x_09, mt + ph);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Label
+    ctx.fillStyle = C.green;
+    ctx.font = '600 11px "Source Code Pro", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('default', x_09 + 6, mt + 46);
+    ctx.fillText('\u03bb = 0.09', x_09 + 6, mt + 58);
+
+    // Dot at optimal
+    const optIdx = 9; // lambda=0.09
+    const optX = ml + (0.09 / 0.5) * pw;
+    const optY = mt + ph - (qualityPenalty[optIdx] / yMax) * ph;
+    ctx.fillStyle = C.green;
+    ctx.beginPath();
+    ctx.arc(optX, optY, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = C.white;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Hover
+    if (hoverIdx !== null && hoverIdx >= 0 && hoverIdx < lambdaVals.length) {
+      const hx = ml + (lambdaVals[hoverIdx] / 0.5) * pw;
+      const hy = mt + ph - (qualityPenalty[hoverIdx] / yMax) * ph;
+
+      ctx.strokeStyle = 'rgba(26,26,46,0.3)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(hx, mt);
+      ctx.lineTo(hx, mt + ph);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = C.blue;
+      ctx.beginPath();
+      ctx.arc(hx, hy, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Mouse interaction
+  canvas.addEventListener('mousemove', function(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (w / rect.width);
+    const my = (e.clientY - rect.top) * (h / rect.height);
+
+    if (mx >= ml && mx <= ml + pw && my >= mt && my <= mt + ph) {
+      const lambdaAtMouse = ((mx - ml) / pw) * 0.5;
+      const idx = Math.round(lambdaAtMouse * 100);
+      if (idx >= 0 && idx < lambdaVals.length) {
+        draw(idx);
+
+        tooltip.style.opacity = '1';
+        const tipX = e.clientX - rect.left + 16;
+        const tipY = e.clientY - rect.top - 10;
+        tooltip.style.left = Math.min(tipX, rect.width - 180) + 'px';
+        tooltip.style.top = tipY + 'px';
+        tooltip.innerHTML =
+          '\u03bb = ' + lambdaVals[idx].toFixed(2) + '<br>' +
+          'pred_loss: ' + predFinal[idx].toFixed(3) + '<br>' +
+          'sigreg_loss: ' + sigregFinal[idx].toFixed(3) + '<br>' +
+          'combined: ' + qualityPenalty[idx].toFixed(3);
+      }
+    } else {
+      tooltip.style.opacity = '0';
+      draw(null);
+    }
+  });
+
+  canvas.addEventListener('mouseleave', function() {
+    tooltip.style.opacity = '0';
+    draw(null);
+  });
+
+  draw(null);
+})();
+
+
+// ═══════════════════════════════════════════════════════
+// 3. AUTOREGRESSIVE ROLLOUT
+// ═══════════════════════════════════════════════════════
+(function() {
+  const { ctx, w, h } = setupCanvas(document.getElementById('rolloutCanvas'));
+
+  const TOTAL_STEPS = 8; // t0..t7
+  const CONTEXT_SIZE = 3;
+  const NUM_PRED_STEPS = 5;
+  let currentStep = 0; // 0 = initial state, 1..5 = prediction steps
+  let autoPlaying = false;
+  let autoTimer = null;
+  let animProgress = 1; // 0..1 animation within a step
+  let animFrameId = null;
+
+  // Timeline layout
+  const ml = 50, mr = 50;
+  const timelineY = h * 0.35;
+  const stepW = (w - ml - mr) / (TOTAL_STEPS - 1);
+
+  // Colors for time steps
+  const realColor = C.blue;
+  const predColor = C.red;
+  const actionColor = C.amber;
+
+  function getStepX(t) {
+    return ml + t * stepW;
+  }
+
+  function getSpeed() {
+    const val = parseInt(document.getElementById('rolloutSpeed').value);
+    return [1500, 1200, 800, 500, 300][val - 1];
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = C.white;
+    ctx.fillRect(0, 0, w, h);
+
+    // Title
+    ctx.fillStyle = C.textSec;
+    ctx.font = '500 13px "Source Code Pro", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Autoregressive Rollout', w / 2, 20);
+
+    // Timeline base line
+    ctx.strokeStyle = C.border;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(ml, timelineY);
+    ctx.lineTo(w - mr, timelineY);
+    ctx.stroke();
+
+    // Time step labels
+    ctx.font = '11px "Source Code Pro", monospace';
+    ctx.textAlign = 'center';
+    for (let t = 0; t < TOTAL_STEPS; t++) {
+      const x = getStepX(t);
+
+      // Tick mark
+      ctx.strokeStyle = C.border;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, timelineY - 6);
+      ctx.lineTo(x, timelineY + 6);
+      ctx.stroke();
+
+      // Label
+      ctx.fillStyle = C.muted;
+      ctx.fillText('t' + t, x, timelineY + 24);
+    }
+
+    // Determine which time steps have embeddings and their types
+    // Initial: t0, t1, t2 are real
+    // After step k: t(k+2) is predicted (shifts window by 1 each step)
+    const embeddings = []; // { t, type: 'real'|'predicted' }
+    // Real observations: always t0, t1, t2
+    embeddings.push({ t: 0, type: 'real' });
+    embeddings.push({ t: 1, type: 'real' });
+    embeddings.push({ t: 2, type: 'real' });
+
+    // Predicted: steps 1..currentStep produce t3..t(2+currentStep)
+    for (let s = 1; s <= currentStep; s++) {
+      embeddings.push({ t: 2 + s, type: 'predicted' });
+    }
+
+    // Draw action arrows above timeline for predicted steps
+    const arrowY = timelineY - 55;
+    ctx.font = '10px "Source Code Pro", monospace';
+
+    for (let s = 1; s <= Math.min(currentStep, NUM_PRED_STEPS); s++) {
+      // Step s: context ends at t_{s+1}, action leads to t_{s+2}
+      const fromT = s + 1; // action applied from this time step
+      const toT = s + 2;  // prediction lands here
+      const fromX = getStepX(fromT);
+      const toX = getStepX(toT);
+      const midX = (fromX + toX) / 2;
+
+      ctx.strokeStyle = actionColor;
+      ctx.fillStyle = actionColor;
+      ctx.lineWidth = 1.5;
+
+      // Arrow
+      ctx.beginPath();
+      ctx.moveTo(fromX, arrowY);
+      ctx.lineTo(toX - 6, arrowY);
+      ctx.stroke();
+
+      // Arrowhead
+      ctx.beginPath();
+      ctx.moveTo(toX - 6, arrowY - 4);
+      ctx.lineTo(toX, arrowY);
+      ctx.lineTo(toX - 6, arrowY + 4);
+      ctx.closePath();
+      ctx.fill();
+
+      // Label
+      ctx.textAlign = 'center';
+      ctx.fillStyle = actionColor;
+      ctx.fillText('a' + fromT, midX, arrowY - 8);
+    }
+
+    // Show future actions as dimmed
+    for (let s = currentStep + 1; s <= NUM_PRED_STEPS; s++) {
+      const fromT = s + 1;
+      const toT = s + 2;
+      if (toT >= TOTAL_STEPS) break;
+      const fromX = getStepX(fromT);
+      const toX = getStepX(toT);
+      const midX = (fromX + toX) / 2;
+
+      ctx.strokeStyle = 'rgba(217,119,6,0.2)';
+      ctx.fillStyle = 'rgba(217,119,6,0.2)';
+      ctx.lineWidth = 1;
+
+      ctx.beginPath();
+      ctx.moveTo(fromX, arrowY);
+      ctx.lineTo(toX - 6, arrowY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(toX - 6, arrowY - 3);
+      ctx.lineTo(toX, arrowY);
+      ctx.lineTo(toX - 6, arrowY + 3);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.textAlign = 'center';
+      ctx.fillText('a' + fromT, midX, arrowY - 8);
+    }
+
+    // Draw context window (blue box)
+    // Step 0: initial window [t0,t1,t2]
+    // Step 1: input context [t0,t1,t2] + a2 -> predict t3'
+    // Step 2: input context [t1,t2,t3'] + a3 -> predict t4'
+    // Step 3: input context [t2,t3',t4'] + a4 -> predict t5'
+    // Input window start = max(0, currentStep - 1)
+    if (currentStep >= 0) {
+      const winStart = Math.max(0, currentStep - 1);
+      const winEnd = winStart + CONTEXT_SIZE - 1;
+      const boxX1 = getStepX(winStart) - 18;
+      const boxX2 = getStepX(Math.min(winEnd, TOTAL_STEPS - 1)) + 18;
+      const boxY1 = timelineY - 32;
+      const boxY2 = timelineY + 32;
+
+      ctx.strokeStyle = C.blue;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 3]);
+      ctx.strokeRect(boxX1, boxY1, boxX2 - boxX1, boxY2 - boxY1);
+      ctx.setLineDash([]);
+
+      // Label
+      ctx.fillStyle = C.blue;
+      ctx.font = '500 10px "Source Code Pro", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('context window', (boxX1 + boxX2) / 2, boxY2 + 14);
+    }
+
+    // Draw embedding dots
+    const dotRadius = 10;
+    for (const emb of embeddings) {
+      const x = getStepX(emb.t);
+      const y = timelineY;
+
+      if (emb.type === 'real') {
+        // Solid dot
+        ctx.fillStyle = realColor;
+        ctx.beginPath();
+        ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // White inner for style
+        ctx.fillStyle = C.white;
+        ctx.beginPath();
+        ctx.arc(x, y, dotRadius - 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = realColor;
+        ctx.beginPath();
+        ctx.arc(x, y, dotRadius - 3, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Predicted: dashed outline, lighter fill
+        ctx.fillStyle = 'rgba(194,64,42,0.15)';
+        ctx.beginPath();
+        ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = predColor;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Inner dot
+        ctx.fillStyle = predColor;
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath();
+        ctx.arc(x, y, dotRadius - 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // Draw step description
+    const descY = h - 55;
+    ctx.font = '13px "Spectral", Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = C.textSec;
+
+    if (currentStep === 0) {
+      ctx.fillText('Initial state: 3 real observations (t0, t1, t2). Click "Step" to begin rollout.', w / 2, descY);
+    } else {
+      // Before step k fires, the window is [t_{k-1}, t_k, t_{k+1}]
+      // The prediction uses that window + action to predict t_{k+2}
+      const winStart = currentStep - 1;
+      const winEnd = currentStep + 1;
+      const parts = [];
+      for (let t = winStart; t <= winEnd; t++) {
+        if (t <= 2) parts.push('t' + t);
+        else parts.push("t" + t + "'");
+      }
+      const predT = currentStep + 2;
+      ctx.fillText(
+        'Step ' + currentStep + ': [' + parts.join(', ') + '] + a' + (currentStep + 1) + ' \u2192 predict t' + predT + "'" ,
+        w / 2, descY
+      );
+    }
+
+    // Legend (below context window label)
+    const legendY = timelineY + 58;
+    const legendX = w - mr - 170;
+    ctx.font = '10px "Source Code Pro", monospace';
+    ctx.textAlign = 'left';
+
+    // Real dot
+    ctx.fillStyle = realColor;
+    ctx.beginPath();
+    ctx.arc(legendX, legendY, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = C.textSec;
+    ctx.fillText('Real observation', legendX + 10, legendY + 4);
+
+    // Predicted dot
+    ctx.fillStyle = 'rgba(194,64,42,0.15)';
+    ctx.beginPath();
+    ctx.arc(legendX + 125, legendY, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = predColor;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath();
+    ctx.arc(legendX + 125, legendY, 5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = C.textSec;
+    ctx.fillText('Predicted', legendX + 135, legendY + 4);
+
+    // Error accumulation indicator
+    if (currentStep >= 2) {
+      const barX = ml;
+      const barW = w * 0.45;
+      const barY = h - 22;
+      const barH = 5;
+      const errorLevel = (currentStep - 1) / (NUM_PRED_STEPS - 1);
+
+      ctx.fillStyle = '#f0f0f0';
+      ctx.fillRect(barX, barY, barW, barH);
+
+      // Gradient bar
+      const grad = ctx.createLinearGradient(barX, 0, barX + barW * errorLevel, 0);
+      grad.addColorStop(0, C.green);
+      grad.addColorStop(0.5, C.amber);
+      grad.addColorStop(1, C.red);
+      ctx.fillStyle = grad;
+      ctx.fillRect(barX, barY, barW * errorLevel, barH);
+
+      ctx.fillStyle = C.muted;
+      ctx.font = '9px "Source Code Pro", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('Error accumulation', barX, barY - 5);
+    }
+  }
+
+  function stepForward() {
+    if (currentStep < NUM_PRED_STEPS) {
+      currentStep++;
+      draw();
+    }
+  }
+
+  function reset() {
+    currentStep = 0;
+    stopAutoPlay();
+    draw();
+  }
+
+  function stopAutoPlay() {
+    autoPlaying = false;
+    if (autoTimer) {
+      clearInterval(autoTimer);
+      autoTimer = null;
+    }
+    document.getElementById('rolloutAutoBtn').textContent = 'Auto-play';
+  }
+
+  function startAutoPlay() {
+    if (currentStep >= NUM_PRED_STEPS) {
+      currentStep = 0;
+      draw();
+    }
+    autoPlaying = true;
+    document.getElementById('rolloutAutoBtn').textContent = 'Stop';
+    autoTimer = setInterval(function() {
+      if (currentStep < NUM_PRED_STEPS) {
+        currentStep++;
+        draw();
+      } else {
+        stopAutoPlay();
+      }
+    }, getSpeed());
+  }
+
+  document.getElementById('rolloutStepBtn').addEventListener('click', function() {
+    stopAutoPlay();
+    stepForward();
+  });
+
+  document.getElementById('rolloutAutoBtn').addEventListener('click', function() {
+    if (autoPlaying) {
+      stopAutoPlay();
+    } else {
+      startAutoPlay();
+    }
+  });
+
+  document.getElementById('rolloutResetBtn').addEventListener('click', reset);
+
+  draw();
+})();
+
+
+// ═══════════════════════════════════════════════════════
+// 4. LEARNING RATE SCHEDULE
+// ═══════════════════════════════════════════════════════
+(function() {
+  const canvas = document.getElementById('lrCanvas');
+  const { ctx, w, h } = setupCanvas(canvas);
+  const tooltip = document.getElementById('lrTooltip');
+
+  const ml = 70, mr = 30, mt = 28, mb = 44;
+  const pw = w - ml - mr;
+  const ph = h - mt - mb;
+
+  const baseLR = 5e-5;
+  const warmupEpochs = 5;
+  const totalEpochs = 100;
+
+  function getLR(epoch) {
+    if (epoch <= warmupEpochs) {
+      return baseLR * (epoch / warmupEpochs);
+    } else {
+      const progress = (epoch - warmupEpochs) / (totalEpochs - warmupEpochs);
+      return baseLR * 0.5 * (1 + Math.cos(Math.PI * progress));
+    }
+  }
+
+  // Precompute
+  const lrValues = [];
+  for (let e = 0; e <= totalEpochs; e++) {
+    lrValues.push(getLR(e));
+  }
+
+  const yMax = baseLR * 1.15;
+
+  function draw(hoverEpoch) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = C.white;
+    ctx.fillRect(0, 0, w, h);
+
+    // Warmup region shading
+    const warmupEndX = ml + (warmupEpochs / totalEpochs) * pw;
+    ctx.fillStyle = 'rgba(37,99,235,0.05)';
+    ctx.fillRect(ml, mt, warmupEndX - ml, ph);
+
+    // Decay region shading
+    ctx.fillStyle = 'rgba(124,58,237,0.03)';
+    ctx.fillRect(warmupEndX, mt, ml + pw - warmupEndX, ph);
+
+    // Phase labels
+    ctx.font = '500 10px "Source Code Pro", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(37,99,235,0.45)';
+    ctx.fillText('Warmup', ml + (warmupEndX - ml) / 2, mt + 16);
+
+    ctx.fillStyle = 'rgba(124,58,237,0.35)';
+    ctx.fillText('Cosine decay', (warmupEndX + ml + pw) / 2, mt + 16);
+
+    // Grid
+    ctx.strokeStyle = '#eee';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const yVal = (yMax / 4) * i;
+      const yPx = mt + ph - (yVal / yMax) * ph;
+      ctx.beginPath();
+      ctx.moveTo(ml, yPx);
+      ctx.lineTo(ml + pw, yPx);
+      ctx.stroke();
+
+      ctx.fillStyle = C.muted;
+      ctx.font = '10px "Source Code Pro", monospace';
+      ctx.textAlign = 'right';
+      const label = (yVal * 1e5).toFixed(1) + 'e-5';
+      ctx.fillText(label, ml - 6, yPx + 4);
+    }
+
+    // X ticks
+    for (let v = 0; v <= 100; v += 20) {
+      const xPx = ml + (v / totalEpochs) * pw;
+
+      ctx.fillStyle = C.muted;
+      ctx.font = '11px "Source Code Pro", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(v.toString(), xPx, mt + ph + 20);
+    }
+
+    // Axes
+    ctx.strokeStyle = C.border;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(ml, mt);
+    ctx.lineTo(ml, mt + ph);
+    ctx.lineTo(ml + pw, mt + ph);
+    ctx.stroke();
+
+    // Axis labels
+    ctx.fillStyle = C.muted;
+    ctx.font = '11px "Source Code Pro", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Epoch', ml + pw / 2, h - 6);
+
+    ctx.save();
+    ctx.translate(14, mt + ph / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Learning Rate', 0, 0);
+    ctx.restore();
+
+    // Area fill
+    ctx.beginPath();
+    ctx.moveTo(ml, mt + ph);
+    for (let e = 0; e <= totalEpochs; e++) {
+      const xPx = ml + (e / totalEpochs) * pw;
+      const yPx = mt + ph - (lrValues[e] / yMax) * ph;
+      ctx.lineTo(xPx, yPx);
+    }
+    ctx.lineTo(ml + pw, mt + ph);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(124,58,237,0.08)';
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    ctx.strokeStyle = C.violet;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    for (let e = 0; e <= totalEpochs; e++) {
+      const xPx = ml + (e / totalEpochs) * pw;
+      const yPx = mt + ph - (lrValues[e] / yMax) * ph;
+      if (e === 0) ctx.moveTo(xPx, yPx);
+      else ctx.lineTo(xPx, yPx);
+    }
+    ctx.stroke();
+
+    // Peak annotation
+    const peakX = ml + (warmupEpochs / totalEpochs) * pw;
+    const peakY = mt + ph - (baseLR / yMax) * ph;
+    ctx.fillStyle = C.violet;
+    ctx.beginPath();
+    ctx.arc(peakX, peakY, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = C.white;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = C.violet;
+    ctx.font = '500 10px "Source Code Pro", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('5e-5', peakX + 8, peakY - 6);
+
+    // Hover
+    if (hoverEpoch !== null && hoverEpoch >= 0 && hoverEpoch <= totalEpochs) {
+      const hx = ml + (hoverEpoch / totalEpochs) * pw;
+      const hy = mt + ph - (lrValues[hoverEpoch] / yMax) * ph;
+
+      ctx.strokeStyle = 'rgba(26,26,46,0.2)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(hx, mt);
+      ctx.lineTo(hx, mt + ph);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = C.violet;
+      ctx.beginPath();
+      ctx.arc(hx, hy, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  canvas.addEventListener('mousemove', function(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (w / rect.width);
+    const my = (e.clientY - rect.top) * (h / rect.height);
+
+    if (mx >= ml && mx <= ml + pw && my >= mt && my <= mt + ph) {
+      const epoch = Math.round(((mx - ml) / pw) * totalEpochs);
+      if (epoch >= 0 && epoch <= totalEpochs) {
+        draw(epoch);
+
+        tooltip.style.opacity = '1';
+        const tipX = e.clientX - rect.left + 16;
+        const tipY = e.clientY - rect.top - 10;
+        tooltip.style.left = Math.min(tipX, rect.width - 160) + 'px';
+        tooltip.style.top = tipY + 'px';
+        tooltip.innerHTML =
+          'Epoch: ' + epoch + '<br>' +
+          'LR: ' + lrValues[epoch].toExponential(3);
+      }
+    } else {
+      tooltip.style.opacity = '0';
+      draw(null);
+    }
+  });
+
+  canvas.addEventListener('mouseleave', function() {
+    tooltip.style.opacity = '0';
+    draw(null);
+  });
+
+  draw(null);
+})();
+
+</script>
+</body>
+</html>

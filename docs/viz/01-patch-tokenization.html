@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01 &mdash; From Pixels to Tokens &mdash; LeWM</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Source+Code+Pro:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+
+<style>
+/* ── Design Tokens ── */
+:root {
+  --bg: #faf9f6;
+  --bg-alt: #f3f0eb;
+  --text: #1a1a2e;
+  --text-secondary: #4a4a6a;
+  --text-muted: #8888a0;
+  --accent: #c2402a;
+  --accent-hover: #a03520;
+  --blue: #2563eb;
+  --green: #059669;
+  --border: #e0ddd5;
+  --card-shadow: 0 2px 8px rgba(26,26,46,0.06), 0 1px 3px rgba(26,26,46,0.04);
+
+  --font-serif: 'Spectral', Georgia, 'Times New Roman', serif;
+  --font-display: 'Newsreader', 'Spectral', Georgia, serif;
+  --font-mono: 'Source Code Pro', 'Menlo', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: 18px;
+  line-height: 1.78;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Article Container ── */
+.article {
+  max-width: 740px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ── Navigation ── */
+.back-link {
+  display: inline-block;
+  margin-top: 32px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+.back-link:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ── Header ── */
+header {
+  padding: 48px 0 40px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 48px;
+}
+
+.overline {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 14px;
+  display: block;
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--text);
+  margin-bottom: 18px;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 300;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  max-width: 620px;
+}
+
+/* ── Prose ── */
+.prose {
+  margin-bottom: 40px;
+}
+.prose p {
+  margin-bottom: 18px;
+  color: var(--text-secondary);
+}
+.prose p:last-child { margin-bottom: 0; }
+.prose strong { color: var(--text); font-weight: 500; }
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--bg-alt);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent);
+}
+
+h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+h3 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 500;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+
+/* ── Margin Notes ── */
+.margin-note {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--text-muted);
+  line-height: 1.5;
+  border-left: 2px solid var(--border);
+  padding-left: 14px;
+  margin: 20px 0;
+  font-style: italic;
+}
+
+/* ── Figure Wrappers ── */
+.figure {
+  margin: 36px 0 48px;
+}
+
+.figure-inner {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+}
+
+.figure-canvas-wrap {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+figcaption {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+  line-height: 1.5;
+}
+
+figcaption strong {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* ── Buttons ── */
+.btn {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  padding: 8px 20px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* ── Token Sequence ── */
+.token-sequence-wrap {
+  width: 100%;
+  overflow-x: auto;
+  padding: 16px 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.token-sequence {
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  min-width: max-content;
+  padding: 0 8px;
+}
+
+.token {
+  width: 20px;
+  height: 28px;
+  border-radius: 2px;
+  position: relative;
+  cursor: default;
+  flex-shrink: 0;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.token:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+}
+
+.token-cls {
+  width: 28px;
+  height: 36px;
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 500;
+  color: var(--accent);
+  background: rgba(194,64,42,0.08);
+  margin-right: 6px;
+}
+
+.token-label {
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.pos-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* ── ViT Flow ── */
+.vit-flow-wrap {
+  width: 100%;
+  position: relative;
+}
+
+.vit-flow-controls {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+/* ── Projector ── */
+.projector-wrap {
+  width: 100%;
+}
+
+/* ── Tooltip ── */
+.tooltip {
+  position: absolute;
+  background: var(--text);
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 100;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.tooltip.visible { opacity: 1; }
+
+/* ── Code Block ── */
+.code-block {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 20px 24px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 20px 0;
+  white-space: pre;
+  white-space: pre-wrap;
+}
+.code-block .kw { color: #cba6f7; }
+.code-block .fn { color: #89b4fa; }
+.code-block .str { color: #a6e3a1; }
+.code-block .comment { color: #6c7086; font-style: italic; }
+.code-block .var { color: #f38ba8; }
+
+/* ── Footer ── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 32px 0 56px;
+  margin-top: 64px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+footer a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+}
+footer a:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .figure-canvas-wrap { padding: 12px; }
+  .token { width: 14px; height: 20px; }
+  .token-cls { width: 20px; height: 26px; font-size: 7px; }
+}
+</style>
+</head>
+<body>
+
+<div class="article">
+
+  <a href="index.html" class="back-link">&larr; All Explorations</a>
+
+  <header>
+    <span class="overline">Exploration 01</span>
+    <h1>From Pixels to Tokens</h1>
+    <p class="subtitle">
+      How the Vision Transformer encoder in LeWM converts a 224&times;224 pixel
+      frame into a single 192-dimensional CLS embedding &mdash; the compact
+      representation that the world model learns to predict.
+    </p>
+  </header>
+
+  <!-- ─── Section 1: Opening Prose ─── -->
+  <section class="prose">
+    <p>
+      The Vision Transformer sees the world through patches. Rather than processing
+      pixels individually, it divides each frame into a regular grid of
+      <strong>14&times;14-pixel patches</strong> &mdash; 256 in total &mdash; and treats
+      each as a token. This is a fundamentally different inductive bias from
+      convolutional networks: the ViT makes no assumption about spatial locality
+      until the self-attention layers learn it from data.
+    </p>
+  </section>
+
+  <!-- ─── Figure 1: Patch Grid Explorer ─── -->
+  <section class="figure">
+    <h2>Patch Grid Explorer</h2>
+    <div class="figure-inner">
+      <div class="figure-canvas-wrap">
+        <canvas id="patch-grid" width="560" height="560" style="max-width:100%; cursor:crosshair;"></canvas>
+        <div id="patch-info" style="font-family:var(--font-mono); font-size:13px; color:var(--text-secondary); margin-top:12px; height:20px;">&nbsp;</div>
+      </div>
+      <figcaption>
+        <strong>Figure 1.</strong> A synthetic 224&times;224 image (a T-shape resembling the PushT task)
+        divided into a 16&times;16 grid. Hover to inspect patches; click to extract them into the
+        token sequence below. Each patch becomes one of 256 tokens.
+      </figcaption>
+    </div>
+  </section>
+
+  <!-- ─── Section 2: Prose ─── -->
+  <section class="prose">
+    <p>
+      Each patch is linearly projected into the transformer's hidden space via a learned
+      embedding matrix. A special classification token (<strong>CLS</strong>) is prepended
+      to the sequence, serving as the aggregate representation of the entire image.
+      Learned positional encodings are added so the model knows where each patch
+      originated in the grid.
+    </p>
+
+    <div class="margin-note">
+      ViT-tiny uses a hidden dimension of 192 and 3 attention heads per layer, making
+      it lightweight enough for real-time robotics inference while retaining strong
+      representation capacity.
+    </div>
+  </section>
+
+  <!-- ─── Figure 2: Token Sequence ─── -->
+  <section class="figure">
+    <h2>Token Sequence</h2>
+    <div class="figure-inner">
+      <div class="figure-canvas-wrap">
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:12px; flex-wrap:wrap;">
+          <span style="font-family:var(--font-mono); font-size:12px; color:var(--text-muted); letter-spacing:1px;">
+            257 TOKENS = 1 CLS + 256 PATCHES
+          </span>
+          <label style="font-family:var(--font-mono); font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <input type="checkbox" id="show-pos-enc" style="cursor:pointer;"> Show positional encoding
+          </label>
+        </div>
+        <div class="token-sequence-wrap" id="token-sequence-wrap">
+          <div class="token-sequence" id="token-sequence"></div>
+        </div>
+        <div id="token-info" style="font-family:var(--font-mono); font-size:12px; color:var(--text-secondary); margin-top:8px; height:16px;">&nbsp;</div>
+      </div>
+      <figcaption>
+        <strong>Figure 2.</strong> The 257-token input sequence. The red-bordered CLS token at position 0
+        aggregates information from all patches. Each colored square corresponds to a patch from
+        the grid above. Toggle positional encoding to see the learned position signal overlaid.
+        Scroll to browse the full sequence.
+      </figcaption>
+    </div>
+  </section>
+
+  <!-- ─── Section 3: Prose ─── -->
+  <section class="prose">
+    <p>
+      The token sequence passes through <strong>12 self-attention layers</strong>. Each layer
+      allows every token to attend to every other, building up increasingly abstract
+      representations. But for LeWM, only the CLS token matters &mdash; it becomes the
+      frame's embedding.
+    </p>
+
+    <div class="code-block">
+<span class="comment"># From jepa.py &mdash; encoding a frame</span>
+output = <span class="var">self</span>.encoder(pixels, interpolate_pos_encoding=<span class="kw">True</span>)
+pixels_emb = output.last_hidden_state[:, <span class="str">0</span>]  <span class="comment"># CLS token only</span>
+emb = <span class="var">self</span>.projector(pixels_emb)
+    </div>
+  </section>
+
+  <!-- ─── Figure 3: ViT Processing Animation ─── -->
+  <section class="figure">
+    <h2>ViT Processing Flow</h2>
+    <div class="figure-inner">
+      <div class="figure-canvas-wrap">
+        <canvas id="vit-flow" width="680" height="300" style="max-width:100%;"></canvas>
+        <div class="vit-flow-controls">
+          <button class="btn" id="btn-process">Process</button>
+          <button class="btn" id="btn-reset-vit">Reset</button>
+        </div>
+      </div>
+      <figcaption>
+        <strong>Figure 3.</strong> The 257-token sequence enters 12 transformer layers (ViT-tiny).
+        Self-attention mixing lines show tokens exchanging information. On the right,
+        only the CLS token (position 0, red) is extracted as the frame embedding.
+        Click <em>Process</em> to animate.
+      </figcaption>
+    </div>
+  </section>
+
+  <!-- ─── Section 4: Prose ─── -->
+  <section class="prose">
+    <p>
+      The CLS token is then projected through a <strong>2-layer MLP</strong> with
+      BatchNorm and GELU activation, reducing it from the ViT's hidden dimension to
+      the 192-dimensional embedding space where prediction happens.
+    </p>
+
+    <div class="margin-note">
+      The MLP projector architecture: Linear(192 &rarr; 2048) &rarr; BatchNorm1d(2048) &rarr; GELU &rarr;
+      Linear(2048 &rarr; 192). The wide hidden layer allows the network to learn a
+      nonlinear mapping from the ViT's representation space to the prediction space.
+    </div>
+  </section>
+
+  <!-- ─── Figure 4: CLS → Projector → Embedding ─── -->
+  <section class="figure">
+    <h2>CLS &rarr; Projector &rarr; Embedding</h2>
+    <div class="figure-inner">
+      <div class="figure-canvas-wrap">
+        <canvas id="projector" width="680" height="320" style="max-width:100%;"></canvas>
+      </div>
+      <figcaption>
+        <strong>Figure 4.</strong> The CLS token (192-dim) passes through the MLP projector.
+        The intermediate 2048-dim hidden layer is shown as a wide band, then narrows
+        back to the 192-dim output. The final embedding is visualized as a heatmap bar.
+      </figcaption>
+    </div>
+  </section>
+
+  <!-- ─── Closing Prose ─── -->
+  <section class="prose" style="margin-top:48px; margin-bottom:40px;">
+    <h3>Summary</h3>
+    <p>
+      From a raw 224&times;224 pixel frame, the ViT-tiny encoder produces a single
+      <strong>192-dimensional vector</strong> that captures the visual state of the
+      environment. This compact embedding is what the world model's autoregressive
+      predictor learns to forecast forward in time, conditioned on actions. The next
+      exploration shows how these embeddings are structured in the latent space by the
+      SIGReg regularizer.
+    </p>
+  </section>
+
+</div>
+
+<footer>
+  <a href="index.html">&larr; All Explorations</a> &ensp;&middot;&ensp;
+  <a href="02-embedding-space.html">Next: Embedding Space &amp; SIGReg &rarr;</a>
+</footer>
+
+<!-- ─── Tooltip element ─── -->
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// Utility
+// ═══════════════════════════════════════════════════════
+const DPR = window.devicePixelRatio || 1;
+
+function setupCanvas(canvas, logicalW, logicalH) {
+  canvas.width = logicalW * DPR;
+  canvas.height = logicalH * DPR;
+  canvas.style.width = logicalW + 'px';
+  canvas.style.height = logicalH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(DPR, DPR);
+  return ctx;
+}
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return '#' + f(0) + f(8) + f(4);
+}
+
+// ═══════════════════════════════════════════════════════
+// Shared State
+// ═══════════════════════════════════════════════════════
+const GRID = 16;
+const PATCH_PX = 14;
+const IMG_SIZE = 224;
+const NUM_PATCHES = GRID * GRID; // 256
+
+// Generate patch colors based on synthetic T-shape image
+const patchColors = [];
+const patchRGB = []; // store [r,g,b] for each patch
+(function generatePatchColors() {
+  // Create a synthetic T-shape image in memory
+  const tmpCanvas = document.createElement('canvas');
+  tmpCanvas.width = IMG_SIZE;
+  tmpCanvas.height = IMG_SIZE;
+  const tc = tmpCanvas.getContext('2d');
+
+  // Background gradient
+  const bgGrad = tc.createLinearGradient(0, 0, IMG_SIZE, IMG_SIZE);
+  bgGrad.addColorStop(0, '#e8e0d4');
+  bgGrad.addColorStop(1, '#d4cfc5');
+  tc.fillStyle = bgGrad;
+  tc.fillRect(0, 0, IMG_SIZE, IMG_SIZE);
+
+  // Table surface
+  tc.fillStyle = '#b8a88a';
+  tc.fillRect(20, 140, 184, 70);
+
+  // T-shape piece (like PushT)
+  tc.fillStyle = '#c2402a';
+  // Horizontal bar of T
+  tc.fillRect(55, 50, 112, 30);
+  // Vertical bar of T
+  tc.fillRect(90, 50, 42, 90);
+
+  // Push circle (agent)
+  tc.beginPath();
+  tc.arc(160, 100, 16, 0, Math.PI * 2);
+  tc.fillStyle = '#2563eb';
+  tc.fill();
+
+  // Goal marker
+  tc.beginPath();
+  tc.arc(80, 110, 5, 0, Math.PI * 2);
+  tc.fillStyle = '#059669';
+  tc.fill();
+
+  // Subtle grid lines for texture
+  tc.strokeStyle = 'rgba(0,0,0,0.03)';
+  tc.lineWidth = 0.5;
+  for (let i = 0; i < IMG_SIZE; i += 14) {
+    tc.beginPath(); tc.moveTo(i, 0); tc.lineTo(i, IMG_SIZE); tc.stroke();
+    tc.beginPath(); tc.moveTo(0, i); tc.lineTo(IMG_SIZE, i); tc.stroke();
+  }
+
+  // Sample average color per patch
+  const imgData = tc.getImageData(0, 0, IMG_SIZE, IMG_SIZE);
+  for (let row = 0; row < GRID; row++) {
+    for (let col = 0; col < GRID; col++) {
+      let rSum = 0, gSum = 0, bSum = 0, count = 0;
+      for (let py = 0; py < PATCH_PX; py++) {
+        for (let px = 0; px < PATCH_PX; px++) {
+          const x = col * PATCH_PX + px;
+          const y = row * PATCH_PX + py;
+          const idx = (y * IMG_SIZE + x) * 4;
+          rSum += imgData.data[idx];
+          gSum += imgData.data[idx + 1];
+          bSum += imgData.data[idx + 2];
+          count++;
+        }
+      }
+      const r = Math.round(rSum / count);
+      const g = Math.round(gSum / count);
+      const b = Math.round(bSum / count);
+      patchColors.push('rgb(' + r + ',' + g + ',' + b + ')');
+      patchRGB.push([r, g, b]);
+    }
+  }
+})();
+
+// Extracted patches state
+const extractedPatches = new Set();
+
+// ═══════════════════════════════════════════════════════
+// Figure 1: Patch Grid Explorer
+// ═══════════════════════════════════════════════════════
+(function() {
+  const canvas = document.getElementById('patch-grid');
+  const infoEl = document.getElementById('patch-info');
+  const tooltip = document.getElementById('tooltip');
+
+  // Responsive sizing
+  const container = canvas.parentElement;
+  const maxW = Math.min(container.clientWidth - 48, 500);
+  const canvasSize = maxW;
+
+  canvas.style.width = canvasSize + 'px';
+  canvas.style.height = canvasSize + 'px';
+  canvas.width = canvasSize * DPR;
+  canvas.height = canvasSize * DPR;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(DPR, DPR);
+
+  const padding = 20;
+  const gridPx = canvasSize - padding * 2;
+  const cellSize = gridPx / GRID;
+
+  let hoveredRow = -1, hoveredCol = -1;
+  let animatingPatch = null; // {row, col, progress, startTime}
+
+  // Draw synthetic image onto grid
+  const synthCanvas = document.createElement('canvas');
+  synthCanvas.width = IMG_SIZE;
+  synthCanvas.height = IMG_SIZE;
+  const sc = synthCanvas.getContext('2d');
+
+  // Recreate the image
+  const bgGrad = sc.createLinearGradient(0, 0, IMG_SIZE, IMG_SIZE);
+  bgGrad.addColorStop(0, '#e8e0d4');
+  bgGrad.addColorStop(1, '#d4cfc5');
+  sc.fillStyle = bgGrad;
+  sc.fillRect(0, 0, IMG_SIZE, IMG_SIZE);
+  sc.fillStyle = '#b8a88a';
+  sc.fillRect(20, 140, 184, 70);
+  sc.fillStyle = '#c2402a';
+  sc.fillRect(55, 50, 112, 30);
+  sc.fillRect(90, 50, 42, 90);
+  sc.beginPath(); sc.arc(160, 100, 16, 0, Math.PI * 2);
+  sc.fillStyle = '#2563eb'; sc.fill();
+  sc.beginPath(); sc.arc(80, 110, 5, 0, Math.PI * 2);
+  sc.fillStyle = '#059669'; sc.fill();
+
+  function draw() {
+    ctx.clearRect(0, 0, canvasSize, canvasSize);
+
+    // Draw the image scaled to grid area
+    ctx.drawImage(synthCanvas, padding, padding, gridPx, gridPx);
+
+    // Draw grid overlay
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= GRID; i++) {
+      const pos = padding + i * cellSize;
+      ctx.beginPath(); ctx.moveTo(pos, padding); ctx.lineTo(pos, padding + gridPx); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(padding, pos); ctx.lineTo(padding + gridPx, pos); ctx.stroke();
+    }
+
+    // Dim extracted patches
+    extractedPatches.forEach(idx => {
+      const row = Math.floor(idx / GRID);
+      const col = idx % GRID;
+      const x = padding + col * cellSize;
+      const y = padding + row * cellSize;
+      ctx.fillStyle = 'rgba(250,249,246,0.7)';
+      ctx.fillRect(x, y, cellSize, cellSize);
+    });
+
+    // Highlight hovered patch
+    if (hoveredRow >= 0 && hoveredCol >= 0) {
+      const x = padding + hoveredCol * cellSize;
+      const y = padding + hoveredRow * cellSize;
+      ctx.strokeStyle = '#c2402a';
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
+
+      // Row/col labels
+      ctx.fillStyle = 'rgba(194,64,42,0.85)';
+      ctx.font = '500 11px "Source Code Pro", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('col ' + hoveredCol, x + cellSize / 2, padding - 6);
+      ctx.save();
+      ctx.translate(padding - 6, y + cellSize / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('row ' + hoveredRow, 0, 0);
+      ctx.restore();
+    }
+
+    // Label
+    ctx.fillStyle = var_text_muted;
+    ctx.font = '500 11px "Source Code Pro", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('224\u00D7224 \u2192 16\u00D716 patches = 256 tokens', canvasSize / 2, canvasSize - 4);
+
+    // Animating patch
+    if (animatingPatch) {
+      const elapsed = (performance.now() - animatingPatch.startTime) / 600;
+      if (elapsed >= 1) {
+        extractedPatches.add(animatingPatch.row * GRID + animatingPatch.col);
+        animatingPatch = null;
+        buildTokenSequence();
+        draw();
+        return;
+      }
+      const t = easeOutCubic(elapsed);
+      const srcX = padding + animatingPatch.col * cellSize;
+      const srcY = padding + animatingPatch.row * cellSize;
+      // Animate patch shrinking and fading
+      const scale = 1 - t * 0.6;
+      const alpha = 1 - t * 0.5;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(srcX + cellSize / 2, srcY + cellSize / 2);
+      ctx.scale(scale, scale);
+      ctx.drawImage(synthCanvas,
+        animatingPatch.col * PATCH_PX, animatingPatch.row * PATCH_PX, PATCH_PX, PATCH_PX,
+        -cellSize / 2, -cellSize / 2, cellSize, cellSize);
+      ctx.strokeStyle = '#c2402a';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-cellSize / 2, -cellSize / 2, cellSize, cellSize);
+      ctx.restore();
+      requestAnimationFrame(draw);
+    }
+  }
+
+  const var_text_muted = '#8888a0';
+
+  function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+  function getGridPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (canvasSize / rect.width);
+    const my = (e.clientY - rect.top) * (canvasSize / rect.height);
+    const col = Math.floor((mx - padding) / cellSize);
+    const row = Math.floor((my - padding) / cellSize);
+    if (row >= 0 && row < GRID && col >= 0 && col < GRID) return { row, col };
+    return null;
+  }
+
+  canvas.addEventListener('mousemove', function(e) {
+    const pos = getGridPos(e);
+    if (pos) {
+      hoveredRow = pos.row;
+      hoveredCol = pos.col;
+      const idx = pos.row * GRID + pos.col;
+      infoEl.textContent = 'Patch (' + pos.row + ', ' + pos.col + ') \u2014 token index ' + (idx + 1) +
+        (extractedPatches.has(idx) ? ' (extracted)' : '');
+    } else {
+      hoveredRow = -1;
+      hoveredCol = -1;
+      infoEl.innerHTML = '&nbsp;';
+    }
+    draw();
+  });
+
+  canvas.addEventListener('mouseleave', function() {
+    hoveredRow = -1;
+    hoveredCol = -1;
+    infoEl.innerHTML = '&nbsp;';
+    draw();
+  });
+
+  canvas.addEventListener('click', function(e) {
+    const pos = getGridPos(e);
+    if (pos && !animatingPatch) {
+      const idx = pos.row * GRID + pos.col;
+      if (!extractedPatches.has(idx)) {
+        animatingPatch = { row: pos.row, col: pos.col, startTime: performance.now() };
+        requestAnimationFrame(draw);
+      }
+    }
+  });
+
+  draw();
+})();
+
+// ═══════════════════════════════════════════════════════
+// Figure 2: Token Sequence
+// ═══════════════════════════════════════════════════════
+const showPosEncCheckbox = document.getElementById('show-pos-enc');
+const tokenSeqEl = document.getElementById('token-sequence');
+const tokenInfoEl = document.getElementById('token-info');
+
+// Pre-generate positional encoding colors (sinusoidal-inspired)
+const posEncColors = [];
+for (let i = 0; i < NUM_PATCHES + 1; i++) {
+  const t = i / (NUM_PATCHES + 1);
+  const hue = (t * 360 + 200) % 360;
+  posEncColors.push('hsla(' + hue + ', 60%, 55%, 0.3)');
+}
+
+function buildTokenSequence() {
+  tokenSeqEl.innerHTML = '';
+
+  // CLS token
+  const cls = document.createElement('div');
+  cls.className = 'token token-cls';
+  cls.textContent = 'CLS';
+  cls.title = 'CLS token (position 0)';
+  cls.addEventListener('mouseenter', function() {
+    tokenInfoEl.textContent = 'Position 0: CLS token \u2014 aggregates information from all patches';
+  });
+  cls.addEventListener('mouseleave', function() { tokenInfoEl.innerHTML = '&nbsp;'; });
+  tokenSeqEl.appendChild(cls);
+
+  // Patch tokens
+  for (let i = 0; i < NUM_PATCHES; i++) {
+    const tok = document.createElement('div');
+    tok.className = 'token';
+    tok.style.background = patchColors[i];
+    tok.setAttribute('data-idx', i);
+
+    if (extractedPatches.has(i)) {
+      tok.style.outline = '2px solid var(--accent)';
+      tok.style.outlineOffset = '-1px';
+    }
+
+    // Positional encoding overlay
+    const posOverlay = document.createElement('div');
+    posOverlay.className = 'pos-overlay';
+    posOverlay.style.background = posEncColors[i + 1];
+    posOverlay.style.display = showPosEncCheckbox.checked ? 'block' : 'none';
+    tok.appendChild(posOverlay);
+
+    const row = Math.floor(i / GRID);
+    const col = i % GRID;
+    tok.title = 'Patch (' + row + ',' + col + ') \u2014 position ' + (i + 1);
+    tok.addEventListener('mouseenter', function() {
+      tokenInfoEl.textContent = 'Position ' + (i + 1) + ': patch (' + row + ', ' + col + ') \u2014 ' +
+        'RGB(' + patchRGB[i][0] + ', ' + patchRGB[i][1] + ', ' + patchRGB[i][2] + ')';
+    });
+    tok.addEventListener('mouseleave', function() { tokenInfoEl.innerHTML = '&nbsp;'; });
+
+    tokenSeqEl.appendChild(tok);
+  }
+}
+
+showPosEncCheckbox.addEventListener('change', function() {
+  const overlays = tokenSeqEl.querySelectorAll('.pos-overlay');
+  overlays.forEach(function(el) {
+    el.style.display = showPosEncCheckbox.checked ? 'block' : 'none';
+  });
+});
+
+buildTokenSequence();
+
+// ═══════════════════════════════════════════════════════
+// Figure 3: ViT Processing Animation
+// ═══════════════════════════════════════════════════════
+(function() {
+  const canvas = document.getElementById('vit-flow');
+  const container = canvas.parentElement;
+  const logicalW = Math.min(container.clientWidth - 48, 680);
+  const logicalH = Math.round(logicalW * 300 / 680);
+
+  canvas.style.width = logicalW + 'px';
+  canvas.style.height = logicalH + 'px';
+  canvas.width = logicalW * DPR;
+  canvas.height = logicalH * DPR;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(DPR, DPR);
+
+  const W = logicalW;
+  const H = logicalH;
+
+  const NUM_LAYERS = 12;
+  const NUM_TOKENS_VIS = 20; // Show a subset for visual clarity
+  const TOKEN_H = 6;
+  const TOKEN_GAP = 2;
+
+  const leftX = 60;
+  const rightX = W - 60;
+  const layerStartX = leftX + 50;
+  const layerEndX = rightX - 50;
+  const layerSpacing = (layerEndX - layerStartX) / (NUM_LAYERS - 1);
+
+  const seqStartY = 60;
+  const seqH = NUM_TOKENS_VIS * (TOKEN_H + TOKEN_GAP);
+
+  let animState = 'idle'; // 'idle', 'running', 'done'
+  let animProgress = 0; // 0 to NUM_LAYERS
+  let animStartTime = 0;
+  const ANIM_DURATION_PER_LAYER = 350; // ms
+
+  // Generate random "attention" connections for each layer
+  const attentionLines = [];
+  for (let layer = 0; layer < NUM_LAYERS; layer++) {
+    const lines = [];
+    const numLines = 6 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < numLines; i++) {
+      lines.push({
+        fromToken: Math.floor(Math.random() * NUM_TOKENS_VIS),
+        toToken: Math.floor(Math.random() * NUM_TOKENS_VIS),
+        alpha: 0.1 + Math.random() * 0.25,
+      });
+    }
+    // Always include some lines going to CLS (token 0)
+    for (let i = 0; i < 3; i++) {
+      lines.push({
+        fromToken: 1 + Math.floor(Math.random() * (NUM_TOKENS_VIS - 1)),
+        toToken: 0,
+        alpha: 0.15 + Math.random() * 0.2,
+      });
+    }
+    attentionLines.push(lines);
+  }
+
+  function tokenY(tokenIdx) {
+    return seqStartY + tokenIdx * (TOKEN_H + TOKEN_GAP);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Title labels
+    ctx.fillStyle = '#8888a0';
+    ctx.font = '500 10px "Source Code Pro", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('INPUT', leftX, seqStartY - 18);
+    ctx.fillText('257 tokens', leftX, seqStartY - 6);
+    ctx.fillText('OUTPUT', rightX, seqStartY - 18);
+    ctx.fillText('CLS only', rightX, seqStartY - 6);
+
+    // Input token column
+    for (let i = 0; i < NUM_TOKENS_VIS; i++) {
+      const y = tokenY(i);
+      if (i === 0) {
+        // CLS token
+        ctx.fillStyle = 'rgba(194,64,42,0.7)';
+        ctx.fillRect(leftX - 16, y, 32, TOKEN_H);
+        ctx.strokeStyle = '#c2402a';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(leftX - 16, y, 32, TOKEN_H);
+      } else {
+        const patchIdx = Math.floor((i - 1) * NUM_PATCHES / (NUM_TOKENS_VIS - 1));
+        ctx.fillStyle = patchColors[Math.min(patchIdx, NUM_PATCHES - 1)];
+        ctx.fillRect(leftX - 12, y, 24, TOKEN_H);
+      }
+    }
+
+    // "..." indicator
+    ctx.fillStyle = '#8888a0';
+    ctx.font = '12px "Source Code Pro", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('\u22EE', leftX, tokenY(NUM_TOKENS_VIS) + 8);
+    ctx.font = '10px "Source Code Pro", monospace';
+    ctx.fillText('+237 more', leftX, tokenY(NUM_TOKENS_VIS) + 22);
+
+    // Layer markers
+    for (let l = 0; l < NUM_LAYERS; l++) {
+      const x = layerStartX + l * layerSpacing;
+      const isProcessed = animProgress > l;
+      const isProcessing = animProgress > l && animProgress <= l + 1;
+
+      // Layer column line
+      ctx.strokeStyle = isProcessed ? 'rgba(37,99,235,0.3)' : 'rgba(0,0,0,0.06)';
+      ctx.lineWidth = isProcessing ? 2 : 1;
+      ctx.setLineDash(isProcessed ? [] : [3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x, seqStartY - 2);
+      ctx.lineTo(x, seqStartY + seqH + 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Layer label
+      ctx.fillStyle = isProcessed ? '#2563eb' : '#8888a0';
+      ctx.font = (isProcessing ? '600' : '400') + ' 9px "Source Code Pro", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('L' + (l + 1), x, seqStartY + seqH + 18);
+
+      // Attention mixing lines
+      if (isProcessed && l < NUM_LAYERS - 1) {
+        const nextX = layerStartX + (l + 1) * layerSpacing;
+        const lines = attentionLines[l];
+        lines.forEach(function(line) {
+          const fromY = tokenY(line.fromToken) + TOKEN_H / 2;
+          const toY = tokenY(line.toToken) + TOKEN_H / 2;
+          ctx.beginPath();
+          ctx.moveTo(x, fromY);
+          // Bezier for crossing effect
+          const midX = (x + nextX) / 2;
+          ctx.bezierCurveTo(midX, fromY, midX, toY, nextX, toY);
+          const isToCls = line.toToken === 0;
+          ctx.strokeStyle = isToCls
+            ? 'rgba(194,64,42,' + (line.alpha * 1.5) + ')'
+            : 'rgba(37,99,235,' + line.alpha + ')';
+          ctx.lineWidth = isToCls ? 1.2 : 0.7;
+          ctx.stroke();
+        });
+      }
+    }
+
+    // Output token column
+    if (animState === 'done') {
+      // Only CLS token highlighted
+      const clsY = tokenY(0);
+      ctx.fillStyle = 'rgba(194,64,42,0.8)';
+      ctx.fillRect(rightX - 16, clsY, 32, TOKEN_H + 4);
+      ctx.strokeStyle = '#c2402a';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(rightX - 16, clsY, 32, TOKEN_H + 4);
+
+      // Label
+      ctx.fillStyle = '#c2402a';
+      ctx.font = '600 10px "Source Code Pro", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('CLS', rightX, clsY + TOKEN_H + 20);
+      ctx.font = '400 9px "Source Code Pro", monospace';
+      ctx.fillStyle = '#8888a0';
+      ctx.fillText('192-dim', rightX, clsY + TOKEN_H + 32);
+
+      // Dim other tokens
+      for (let i = 1; i < NUM_TOKENS_VIS; i++) {
+        const y = tokenY(i);
+        ctx.fillStyle = 'rgba(200,200,200,0.3)';
+        ctx.fillRect(rightX - 12, y, 24, TOKEN_H);
+      }
+
+      // Arrow from last layer to CLS output
+      const lastLayerX = layerStartX + (NUM_LAYERS - 1) * layerSpacing;
+      ctx.beginPath();
+      ctx.moveTo(lastLayerX + 4, tokenY(0) + TOKEN_H / 2);
+      ctx.lineTo(rightX - 18, tokenY(0) + TOKEN_H / 2);
+      ctx.strokeStyle = '#c2402a';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // Arrowhead
+      ctx.beginPath();
+      ctx.moveTo(rightX - 18, tokenY(0) + TOKEN_H / 2 - 4);
+      ctx.lineTo(rightX - 14, tokenY(0) + TOKEN_H / 2);
+      ctx.lineTo(rightX - 18, tokenY(0) + TOKEN_H / 2 + 4);
+      ctx.fillStyle = '#c2402a';
+      ctx.fill();
+    } else {
+      // Placeholder output tokens (grayed)
+      for (let i = 0; i < NUM_TOKENS_VIS; i++) {
+        const y = tokenY(i);
+        ctx.fillStyle = 'rgba(200,200,200,0.2)';
+        ctx.fillRect(rightX - 12, y, 24, TOKEN_H);
+      }
+    }
+
+    // Processing front indicator
+    if (animState === 'running') {
+      const currentLayer = Math.floor(animProgress);
+      const layerFrac = animProgress - currentLayer;
+      if (currentLayer < NUM_LAYERS) {
+        const x = layerStartX + animProgress * layerSpacing;
+
+        // Processing front line
+        ctx.strokeStyle = 'rgba(37,99,235,0.6)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, seqStartY - 4);
+        ctx.lineTo(x, seqStartY + seqH + 4);
+        ctx.stroke();
+
+        // Glow
+        const glowGrad = ctx.createRadialGradient(x, seqStartY + seqH / 2, 0, x, seqStartY + seqH / 2, 30);
+        glowGrad.addColorStop(0, 'rgba(37,99,235,0.15)');
+        glowGrad.addColorStop(1, 'rgba(37,99,235,0)');
+        ctx.fillStyle = glowGrad;
+        ctx.fillRect(x - 30, seqStartY - 4, 60, seqH + 8);
+      }
+    }
+
+    // Bottom annotation
+    ctx.fillStyle = '#8888a0';
+    ctx.font = '500 11px "Source Code Pro", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('12 Self-Attention Layers (ViT-tiny)', W / 2, H - 16);
+  }
+
+  function animate() {
+    if (animState !== 'running') return;
+    const elapsed = performance.now() - animStartTime;
+    animProgress = elapsed / ANIM_DURATION_PER_LAYER;
+
+    if (animProgress >= NUM_LAYERS) {
+      animProgress = NUM_LAYERS;
+      animState = 'done';
+      draw();
+      return;
+    }
+
+    draw();
+    requestAnimationFrame(animate);
+  }
+
+  document.getElementById('btn-process').addEventListener('click', function() {
+    if (animState === 'running') return;
+    animState = 'running';
+    animProgress = 0;
+    animStartTime = performance.now();
+    requestAnimationFrame(animate);
+  });
+
+  document.getElementById('btn-reset-vit').addEventListener('click', function() {
+    animState = 'idle';
+    animProgress = 0;
+    draw();
+  });
+
+  draw();
+})();
+
+// ═══════════════════════════════════════════════════════
+// Figure 4: CLS → Projector → Embedding
+// ═══════════════════════════════════════════════════════
+(function() {
+  const canvas = document.getElementById('projector');
+  const container = canvas.parentElement;
+  const logicalW = Math.min(container.clientWidth - 48, 680);
+  const logicalH = Math.round(logicalW * 320 / 680);
+
+  canvas.style.width = logicalW + 'px';
+  canvas.style.height = logicalH + 'px';
+  canvas.width = logicalW * DPR;
+  canvas.height = logicalH * DPR;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(DPR, DPR);
+
+  const W = logicalW;
+  const H = logicalH;
+
+  // Layout
+  const stageY = 60;
+  const stageH = H - 130;
+  const barH = 14;
+
+  // Stage positions (x centers)
+  const stages = [
+    { x: 55,       w: 30,  label: 'CLS Token', sublabel: '192-dim', color: 'rgba(194,64,42,0.6)', dimH: 30 },
+    { x: 155,      w: 80,  label: 'Linear',    sublabel: '192\u2192 2048', color: 'rgba(37,99,235,0.15)', dimH: stageH },
+    { x: 270,      w: 80,  label: 'BatchNorm', sublabel: '2048-dim', color: 'rgba(37,99,235,0.12)', dimH: stageH },
+    { x: 385,      w: 80,  label: 'GELU',      sublabel: '2048-dim', color: 'rgba(5,150,105,0.15)', dimH: stageH },
+    { x: 500,      w: 80,  label: 'Linear',    sublabel: '2048\u2192 192', color: 'rgba(37,99,235,0.15)', dimH: 30 },
+    { x: 610,      w: 40,  label: 'Embedding', sublabel: '192-dim', color: 'rgba(194,64,42,0.5)', dimH: 30 },
+  ];
+
+  // Rescale x positions proportionally
+  const scaleX = W / 680;
+  stages.forEach(function(s) { s.x = Math.round(s.x * scaleX); s.w = Math.round(s.w * scaleX); });
+
+  // Generate fake embedding heatmap values
+  const embValues = [];
+  for (let i = 0; i < 64; i++) {
+    embValues.push(Math.sin(i * 0.3) * 0.5 + Math.cos(i * 0.7) * 0.3 + (Math.random() - 0.5) * 0.4);
+  }
+
+  // Animation
+  let animFrame = 0;
+  let pulsePhase = 0;
+
+  function valToColor(v) {
+    // v in [-1, 1] -> blue to white to red
+    const t = (v + 1) / 2; // [0, 1]
+    if (t < 0.5) {
+      const s = t / 0.5;
+      const r = Math.round(37 + (255 - 37) * s);
+      const g = Math.round(99 + (255 - 99) * s);
+      const b = Math.round(235 + (255 - 235) * s);
+      return 'rgb(' + r + ',' + g + ',' + b + ')';
+    } else {
+      const s = (t - 0.5) / 0.5;
+      const r = Math.round(255 - (255 - 194) * s);
+      const g = Math.round(255 - (255 - 64) * s);
+      const b = Math.round(255 - (255 - 42) * s);
+      return 'rgb(' + r + ',' + g + ',' + b + ')';
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    pulsePhase += 0.015;
+
+    const centerY = stageY + stageH / 2;
+
+    // Draw funnel shape connecting stages
+    for (let i = 0; i < stages.length - 1; i++) {
+      const s1 = stages[i];
+      const s2 = stages[i + 1];
+      const x1 = s1.x + s1.w / 2;
+      const x2 = s2.x - s2.w / 2;
+      const h1 = s1.dimH / 2;
+      const h2 = s2.dimH / 2;
+
+      ctx.beginPath();
+      ctx.moveTo(x1, centerY - h1);
+      ctx.lineTo(x2, centerY - h2);
+      ctx.lineTo(x2, centerY + h2);
+      ctx.lineTo(x1, centerY + h1);
+      ctx.closePath();
+
+      const grad = ctx.createLinearGradient(x1, 0, x2, 0);
+      grad.addColorStop(0, s1.color);
+      grad.addColorStop(1, s2.color);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    // Draw stage blocks
+    stages.forEach(function(s, i) {
+      const x = s.x - s.w / 2;
+      const h = s.dimH;
+      const y = centerY - h / 2;
+
+      // Stage block
+      ctx.fillStyle = s.color;
+      ctx.fillRect(x, y, s.w, h);
+      ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, s.w, h);
+
+      // Pulse effect on middle stages
+      if (i >= 1 && i <= 4) {
+        const pulse = 0.5 + 0.5 * Math.sin(pulsePhase * 2 + i * 0.8);
+        ctx.fillStyle = 'rgba(37,99,235,' + (0.03 * pulse) + ')';
+        ctx.fillRect(x, y, s.w, h);
+      }
+
+      // Label above
+      ctx.fillStyle = '#1a1a2e';
+      ctx.font = '500 11px "Source Code Pro", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(s.label, s.x, y - 10);
+
+      // Sublabel below
+      ctx.fillStyle = '#8888a0';
+      ctx.font = '400 10px "Source Code Pro", monospace';
+      ctx.fillText(s.sublabel, s.x, y + h + 16);
+    });
+
+    // GELU activation curve inside GELU block
+    const geluStage = stages[3];
+    const gx = geluStage.x - geluStage.w / 2 + 5;
+    const gy = centerY;
+    const gw = geluStage.w - 10;
+    const gh = geluStage.dimH / 2 - 5;
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(5,150,105,0.6)';
+    ctx.lineWidth = 1.5;
+    for (let px = 0; px <= gw; px++) {
+      const t = (px / gw) * 6 - 3; // [-3, 3]
+      // Approximate GELU
+      const gelu = 0.5 * t * (1 + Math.tanh(Math.sqrt(2 / Math.PI) * (t + 0.044715 * t * t * t)));
+      const v = Math.max(-1, Math.min(1, gelu / 2.5));
+      const y = gy - v * gh;
+      if (px === 0) ctx.moveTo(gx + px, y);
+      else ctx.lineTo(gx + px, y);
+    }
+    ctx.stroke();
+
+    // Draw full-width heatmap bar at bottom
+    const fullHeatY = H - 35;
+    const fullHeatX = 30;
+    const fullHeatW = W - 60;
+    const fullCellW = fullHeatW / 192;
+
+    ctx.fillStyle = '#8888a0';
+    ctx.font = '500 10px "Source Code Pro", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('Output: 192-dim embedding', fullHeatX, fullHeatY - 8);
+
+    for (let i = 0; i < 192; i++) {
+      const v = Math.sin(i * 0.15) * 0.5 + Math.cos(i * 0.4) * 0.3 + Math.sin(i * 0.05 + pulsePhase) * 0.2;
+      ctx.fillStyle = valToColor(Math.max(-1, Math.min(1, v)));
+      ctx.fillRect(fullHeatX + i * fullCellW, fullHeatY, fullCellW + 0.5, barH);
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(fullHeatX, fullHeatY, fullHeatW, barH);
+
+    // Dim markers
+    ctx.fillStyle = '#8888a0';
+    ctx.font = '400 9px "Source Code Pro", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('0', fullHeatX, fullHeatY + barH + 12);
+    ctx.textAlign = 'right';
+    ctx.fillText('191', fullHeatX + fullHeatW, fullHeatY + barH + 12);
+
+    // Flow arrows between stages
+    ctx.setLineDash([]);
+    for (let i = 0; i < stages.length - 1; i++) {
+      const s1 = stages[i];
+      const s2 = stages[i + 1];
+      const x1 = s1.x + s1.w / 2 + 2;
+      const x2 = s2.x - s2.w / 2 - 2;
+      const midX = (x1 + x2) / 2;
+
+      // Animated dot
+      const dotPhase = (pulsePhase * 2 + i * 1.2) % (Math.PI * 2);
+      const dotT = (Math.sin(dotPhase) + 1) / 2;
+      const dotX = x1 + (x2 - x1) * dotT;
+
+      ctx.beginPath();
+      ctx.arc(dotX, centerY, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(37,99,235,0.5)';
+      ctx.fill();
+    }
+
+    animFrame = requestAnimationFrame(draw);
+  }
+
+  draw();
+})();
+
+</script>
+</body>
+</html>

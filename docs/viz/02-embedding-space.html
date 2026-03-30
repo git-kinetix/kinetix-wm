@@ -1,0 +1,1854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>02 &mdash; The Embedding Space &amp; SIGReg</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Source+Code+Pro:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #faf9f6;
+    --bg-alt: #f3f0eb;
+    --text: #1a1a2e;
+    --text-secondary: #4a4a6a;
+    --text-muted: #8888a0;
+    --accent: #c2402a;
+    --accent-hover: #a03520;
+    --blue: #2563eb;
+    --green: #059669;
+    --border: #e0ddd5;
+    --card-shadow: 0 2px 8px rgba(26,26,46,0.06), 0 1px 3px rgba(26,26,46,0.04);
+
+    --font-serif: 'Spectral', Georgia, 'Times New Roman', serif;
+    --font-display: 'Newsreader', 'Spectral', Georgia, serif;
+    --font-mono: 'Source Code Pro', 'Menlo', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-serif);
+    font-size: 18px;
+    line-height: 1.78;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .article {
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ── Nav ── */
+  .back-link {
+    display: inline-block;
+    margin-top: 24px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .back-link:hover { color: var(--accent); }
+
+  /* ── Header ── */
+  header {
+    padding: 48px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+
+  .overline {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--text);
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    font-family: var(--font-serif);
+    font-size: 1.1rem;
+    font-weight: 300;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    max-width: 620px;
+  }
+
+  /* ── Sections ── */
+  h2 {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 56px 0 16px;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: var(--text);
+    margin: 32px 0 12px;
+  }
+
+  p {
+    margin-bottom: 20px;
+    color: var(--text-secondary);
+  }
+
+  p strong {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* ── Figure containers ── */
+  .figure {
+    margin: 32px 0;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+  }
+
+  .figure-wide {
+    margin-left: -60px;
+    margin-right: -60px;
+  }
+
+  @media (max-width: 860px) {
+    .figure-wide { margin-left: 0; margin-right: 0; }
+  }
+
+  .figure-canvas-wrap {
+    position: relative;
+    width: 100%;
+  }
+
+  .figure-canvas-wrap canvas {
+    display: block;
+    width: 100%;
+  }
+
+  figcaption {
+    padding: 12px 20px 14px;
+    font-size: 14px;
+    font-family: var(--font-serif);
+    font-weight: 300;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    line-height: 1.55;
+  }
+
+  figcaption strong {
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  /* ── Controls ── */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-alt);
+  }
+
+  .control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .control-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .mode-btn {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: white;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .mode-btn:hover {
+    border-color: var(--text-muted);
+  }
+
+  .mode-btn.active {
+    background: var(--text);
+    color: white;
+    border-color: var(--text);
+  }
+
+  .btn-small {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: white;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-small:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 140px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  .slider-value {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* ── Stats overlay ── */
+  .stats-overlay {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(255,255,255,0.92);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .stats-overlay .stat-val {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* ── Why Collapse diagram ── */
+  .collapse-diagram {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+
+  @media (max-width: 600px) {
+    .collapse-diagram { grid-template-columns: 1fr; }
+  }
+
+  .collapse-side {
+    padding: 28px 24px;
+    transition: background 0.3s;
+    cursor: default;
+  }
+
+  .collapse-side:first-child {
+    border-right: 1px solid var(--border);
+  }
+
+  @media (max-width: 600px) {
+    .collapse-side:first-child {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+  }
+
+  .collapse-side:hover {
+    background: var(--bg-alt);
+  }
+
+  .collapse-icon {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 14px;
+  }
+
+  .collapse-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .collapse-label.bad { color: var(--accent); }
+  .collapse-label.good { color: var(--green); }
+
+  .collapse-title {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .collapse-desc {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  .collapse-arrow {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 6px 0;
+  }
+
+  /* ── Algorithm steps ── */
+  .algo-steps {
+    counter-reset: algo-step;
+  }
+
+  .algo-step {
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.3s;
+    cursor: default;
+  }
+
+  .algo-step:last-child { border-bottom: none; }
+
+  .algo-step:hover { background: var(--bg-alt); }
+
+  .algo-step.active { background: rgba(37,99,235,0.04); }
+
+  .algo-step-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+    border-right: 1px solid var(--border);
+  }
+
+  .algo-step.active .algo-step-num { color: var(--blue); }
+
+  .algo-step-body {
+    padding: 16px 20px;
+  }
+
+  .algo-step-title {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .algo-step-desc {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    font-weight: 300;
+  }
+
+  .algo-step-formula {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--blue);
+    margin-top: 6px;
+    display: block;
+  }
+
+  .algo-canvas-wrap {
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+
+  .algo-canvas-wrap canvas {
+    display: block;
+    width: 100%;
+  }
+
+  .algo-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-alt);
+  }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.65;
+    padding: 20px 24px;
+    border-radius: 6px;
+    margin: 20px 0;
+    overflow-x: auto;
+  }
+
+  .code-block .keyword { color: #cba6f7; }
+  .code-block .string { color: #a6e3a1; }
+  .code-block .comment { color: #6c7086; font-style: italic; }
+  .code-block .number { color: #fab387; }
+  .code-block .fn { color: #89b4fa; }
+
+  /* ── Equation ── */
+  .equation-block {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px 28px;
+    margin: 24px 0;
+    text-align: center;
+    font-family: var(--font-serif);
+    font-size: 1.1rem;
+    font-style: italic;
+    color: var(--text);
+  }
+
+  .equation-block .var { color: var(--accent); }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 0 56px;
+    margin-top: 56px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  footer a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  footer a:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* ── Margin notes ── */
+  .margin-note {
+    font-size: 14px;
+    font-weight: 300;
+    color: var(--text-muted);
+    font-style: italic;
+    border-left: 2px solid var(--border);
+    padding-left: 16px;
+    margin: 20px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="article">
+
+  <a href="index.html" class="back-link">&larr; All Explorations</a>
+
+  <header>
+    <span class="overline">Exploration 02</span>
+    <h1>The Embedding Space<br>&amp; SIGReg</h1>
+    <p class="subtitle">
+      How the Sketch Isotropic Gaussian Regularizer prevents representation collapse
+      and keeps the embedding space informative with a single loss term.
+    </p>
+  </header>
+
+  <!-- ── Opening Text ── -->
+  <p>
+    Representation collapse is the central failure mode of Joint Embedding Predictive
+    Architectures. When the encoder learns to map every input to the same embedding
+    vector, prediction becomes trivially easy&thinsp;&mdash;&thinsp;but the representation
+    carries no useful information. <strong>SIGReg prevents this by enforcing that the
+    distribution of embeddings stays close to an isotropic Gaussian.</strong>
+  </p>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- HERO: Collapse vs. Regularization Playground                -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2>Collapse vs. Regularization Playground</h2>
+
+  <figure class="figure figure-wide">
+    <div class="controls" id="hero-controls">
+      <div class="control-group">
+        <button class="mode-btn" data-mode="collapse">No Regularization</button>
+        <button class="mode-btn active" data-mode="sigreg">SIGReg (&lambda;=0.09)</button>
+        <button class="mode-btn" data-mode="too-high">&lambda; too high (0.5)</button>
+      </div>
+      <div class="control-group" style="margin-left:auto;">
+        <span class="control-label">&lambda;</span>
+        <input type="range" id="lambda-slider" min="0" max="0.50" step="0.01" value="0.09">
+        <span class="slider-value" id="lambda-value">0.09</span>
+      </div>
+      <button class="btn-small" id="hero-reset">Reset</button>
+    </div>
+    <div class="figure-canvas-wrap" id="hero-wrap">
+      <canvas id="hero-canvas"></canvas>
+      <div class="stats-overlay" id="hero-stats">
+        Mean dist: <span class="stat-val" id="stat-dist">0.00</span><br>
+        Variance: <span class="stat-val" id="stat-var">0.00</span><br>
+        Isotropy: <span class="stat-val" id="stat-iso">0.00</span>
+      </div>
+    </div>
+    <figcaption>
+      <strong>Figure 1.</strong> A 2D projection of the embedding space. Each dot is a frame
+      embedding from a trajectory, colored by temporal order (blue = early, red = late).
+      Faint contours show the 1&sigma;, 2&sigma;, 3&sigma; levels of the target Gaussian.
+      Drag the &lambda; slider to see continuous transitions between collapse, regularization,
+      and over-regularization.
+    </figcaption>
+  </figure>
+
+  <!-- ── Post-hero text ── -->
+  <p>
+    The characteristic function of a distribution uniquely identifies it. For a standard
+    Gaussian, <em>&phi;(t) = exp(&minus;t&sup2;/2)</em>. SIGReg tests whether the embeddings'
+    empirical characteristic function matches this reference along many random projection
+    directions.
+  </p>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- Characteristic Function Visualization                       -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2>Characteristic Function</h2>
+
+  <figure class="figure figure-wide">
+    <div class="figure-canvas-wrap">
+      <canvas id="cf-canvas"></canvas>
+      <div class="stats-overlay" id="cf-stats" style="top:12px;left:12px;right:auto;">
+        SIGReg loss: <span class="stat-val" id="stat-sigreg">0.00</span>
+      </div>
+    </div>
+    <figcaption>
+      <strong>Figure 2.</strong> The Gaussian reference characteristic function
+      &phi;(t)&nbsp;=&nbsp;exp(&minus;t&sup2;/2) (red curve) overlaid with the empirical
+      characteristic function computed from the current particle positions (blue dots).
+      When &lambda;&nbsp;=&nbsp;0 (collapse), the empirical curve is flat at 1.0.
+      At &lambda;&nbsp;=&nbsp;0.09, it closely matches the Gaussian.
+      At high &lambda;, it oscillates.
+    </figcaption>
+  </figure>
+
+  <p>
+    The beauty of SIGReg is that it simultaneously enforces <strong>variance</strong>
+    (embeddings must spread out), <strong>isotropy</strong> (embeddings must spread evenly
+    in all directions), and <strong>decorrelation</strong> (different dimensions must be
+    independent)&thinsp;&mdash;&thinsp;all through a single scalar loss term.
+  </p>
+
+  <div class="equation-block">
+    <span class="var">L</span><sub>SIGReg</sub> = &int;
+    |&phi;<sub>emp</sub>(t) &minus; e<sup>&minus;t&sup2;/2</sup>|&sup2;
+    &middot; e<sup>&minus;t&sup2;/2</sup> dt
+    &emsp;&emsp;
+    averaged over <span class="var">1024</span> random projections
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- Why Collapse Is Bad                                         -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2>Why Collapse Is Bad</h2>
+
+  <figure class="figure">
+    <div class="collapse-diagram">
+      <div class="collapse-side" id="collapse-bad">
+        <svg class="collapse-icon" viewBox="0 0 64 64" fill="none">
+          <circle cx="32" cy="32" r="28" stroke="#e0ddd5" stroke-width="1"/>
+          <circle cx="32" cy="32" r="4" fill="#c2402a" opacity="0.9"/>
+          <circle cx="33" cy="31" r="2.5" fill="#c2402a" opacity="0.7"/>
+          <circle cx="31" cy="33" r="2" fill="#c2402a" opacity="0.6"/>
+          <circle cx="32.5" cy="31.5" r="1.8" fill="#c2402a" opacity="0.5"/>
+          <circle cx="31.5" cy="32.5" r="1.5" fill="#c2402a" opacity="0.5"/>
+        </svg>
+        <div class="collapse-label bad">Collapsed</div>
+        <div class="collapse-title">All frames &rarr; same point</div>
+        <div class="collapse-arrow">&darr;</div>
+        <div class="collapse-desc">
+          Prediction loss = 0 (trivially). The predictor always outputs the same vector.
+          Representations carry <strong>zero</strong> useful information.
+        </div>
+      </div>
+      <div class="collapse-side" id="collapse-good">
+        <svg class="collapse-icon" viewBox="0 0 64 64" fill="none">
+          <circle cx="32" cy="32" r="28" stroke="#e0ddd5" stroke-width="1"/>
+          <circle cx="20" cy="22" r="2.5" fill="#2563eb" opacity="0.7"/>
+          <circle cx="44" cy="18" r="2.5" fill="#3b82f6" opacity="0.7"/>
+          <circle cx="38" cy="40" r="2.5" fill="#ef4444" opacity="0.7"/>
+          <circle cx="15" cy="42" r="2.5" fill="#8b5cf6" opacity="0.7"/>
+          <circle cx="50" cy="35" r="2.5" fill="#f97316" opacity="0.7"/>
+          <circle cx="28" cy="50" r="2.5" fill="#dc2626" opacity="0.7"/>
+          <circle cx="42" cy="28" r="2.5" fill="#059669" opacity="0.7"/>
+          <circle cx="24" cy="34" r="2.5" fill="#6366f1" opacity="0.7"/>
+        </svg>
+        <div class="collapse-label good">Spread (SIGReg)</div>
+        <div class="collapse-title">Different frames &rarr; different regions</div>
+        <div class="collapse-arrow">&darr;</div>
+        <div class="collapse-desc">
+          Prediction loss is meaningful. The predictor must learn actual dynamics.
+          Representations <strong>capture temporal structure</strong>.
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      <strong>Figure 3.</strong> The fundamental problem: without regularization, the encoder
+      collapses all inputs to a single point. SIGReg prevents this by penalizing
+      distributions that deviate from an isotropic Gaussian. Hover over each side to
+      highlight.
+    </figcaption>
+  </figure>
+
+  <p>
+    Previous JEPAs needed <strong>six separate loss terms</strong> to prevent collapse:
+    variance, covariance, contrastive, attention entropy, capacity, and prediction losses.
+    SIGReg replaces all the regularization terms with one, reducing tunable hyperparameters
+    from six to one.
+  </p>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- The SIGReg Algorithm                                        -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2>The SIGReg Algorithm</h2>
+
+  <figure class="figure figure-wide">
+    <div class="algo-controls">
+      <button class="btn-small" id="algo-prev">&larr; Prev</button>
+      <button class="btn-small" id="algo-next">Next &rarr;</button>
+      <button class="btn-small" id="algo-play">Auto-play</button>
+      <span class="control-label" id="algo-step-label" style="margin-left:auto;">Step 1 / 5</span>
+    </div>
+    <div class="algo-canvas-wrap">
+      <canvas id="algo-canvas"></canvas>
+    </div>
+    <div class="algo-steps" id="algo-steps">
+      <div class="algo-step active" data-step="1">
+        <div class="algo-step-num">1</div>
+        <div class="algo-step-body">
+          <div class="algo-step-title">Sample random unit vectors</div>
+          <div class="algo-step-desc">Draw 1024 random directions from a Gaussian, then normalize each to unit length. These define the projection directions.</div>
+          <span class="algo-step-formula">A = randn(D, 1024); A /= ||A||</span>
+        </div>
+      </div>
+      <div class="algo-step" data-step="2">
+        <div class="algo-step-num">2</div>
+        <div class="algo-step-body">
+          <div class="algo-step-title">Project embeddings onto each vector</div>
+          <div class="algo-step-desc">Multiply the embedding matrix by each unit vector to get 1D projections. Each projection is a scalar per embedding.</div>
+          <span class="algo-step-formula">x = embeddings @ A &nbsp;&rarr;&nbsp; shape (B, 1024)</span>
+        </div>
+      </div>
+      <div class="algo-step" data-step="3">
+        <div class="algo-step-num">3</div>
+        <div class="algo-step-body">
+          <div class="algo-step-title">Compute empirical characteristic function</div>
+          <div class="algo-step-desc">For each of 17 knot values t, compute the mean of cos(x&middot;t) and sin(x&middot;t) across all embeddings. This gives the empirical CF.</div>
+          <span class="algo-step-formula">&phi;_emp(t) = mean(cos(x*t)) + i*mean(sin(x*t))</span>
+        </div>
+      </div>
+      <div class="algo-step" data-step="4">
+        <div class="algo-step-num">4</div>
+        <div class="algo-step-body">
+          <div class="algo-step-title">Compare to Gaussian reference</div>
+          <div class="algo-step-desc">The reference is &phi;(t) = exp(-t&sup2;/2). The error is the squared difference between empirical and reference, at each knot.</div>
+          <span class="algo-step-formula">err(t) = (cos_mean - exp(-t&sup2;/2))&sup2; + sin_mean&sup2;</span>
+        </div>
+      </div>
+      <div class="algo-step" data-step="5">
+        <div class="algo-step-num">5</div>
+        <div class="algo-step-body">
+          <div class="algo-step-title">Integrate error with Gaussian window</div>
+          <div class="algo-step-desc">Weight the error at each knot by exp(-t&sup2;/2) and integrate using the trapezoidal rule. This gives the SIGReg loss.</div>
+          <span class="algo-step-formula">L = &Sigma; err(t) * w(t) * exp(-t&sup2;/2) * N</span>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      <strong>Figure 4.</strong> The five steps of SIGReg computation. Click through each
+      step to see the corresponding visualization above. The algorithm efficiently tests
+      Gaussianity by projecting onto random 1D directions and comparing characteristic
+      functions.
+    </figcaption>
+  </figure>
+
+  <div class="margin-note">
+    In the actual codebase, the SIGReg forward pass is only 6 lines of code
+    (see <code>module.py:25-36</code>), yet it replaces five separate regularization
+    losses from prior work.
+  </div>
+
+</div>
+
+<footer>
+  <a href="index.html">All Explorations</a> &ensp;&middot;&ensp;
+  <a href="https://arxiv.org/pdf/2603.19312v1">Paper</a> &ensp;&middot;&ensp;
+  <a href="https://le-wm.github.io/">Project Site</a>
+</footer>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// SHARED STATE
+// ════════════════════════════════════════════════════════════════
+
+var DPR = Math.min(window.devicePixelRatio || 1, 2);
+var currentLambda = 0.09;
+
+// ── Particle system ──
+var NUM_PARTICLES = 90;
+var particles = [];
+
+function initParticles() {
+  particles.length = 0;
+  for (var i = 0; i < NUM_PARTICLES; i++) {
+    var angle = Math.random() * Math.PI * 2;
+    // Start with a spread-out ring so the initial state is visible
+    var r = 0.15 + Math.random() * 0.35;
+    particles.push({
+      x: Math.cos(angle) * r,
+      y: Math.sin(angle) * r,
+      vx: (Math.random() - 0.5) * 0.003,
+      vy: (Math.random() - 0.5) * 0.003,
+      t: i / NUM_PARTICLES // temporal index 0..1
+    });
+  }
+}
+initParticles();
+
+// ── Physics simulation ──
+function simulateParticles() {
+  var lambda = currentLambda;
+  var friction = 0.93;
+
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    var fx = 0, fy = 0;
+
+    // Attractive force toward origin (collapse tendency)
+    // This represents the prediction loss pushing toward trivial solutions
+    var collapseStrength = 0.004;
+    fx -= p.x * collapseStrength;
+    fy -= p.y * collapseStrength;
+
+    if (lambda > 0.001) {
+      // SIGReg repulsive force: push away from nearby particles
+      var repelStrength = lambda * 0.0006;
+      for (var j = 0; j < particles.length; j++) {
+        if (i === j) continue;
+        var dx = p.x - particles[j].x;
+        var dy = p.y - particles[j].y;
+        var dist2 = dx * dx + dy * dy + 0.00005;
+        var dist = Math.sqrt(dist2);
+        if (dist < 0.5) {
+          var f = repelStrength / dist2;
+          fx += dx * f;
+          fy += dy * f;
+        }
+      }
+
+      // Gaussian shell force: push outward if too close, pull inward if too far
+      var r = Math.sqrt(p.x * p.x + p.y * p.y);
+      var targetR = 0.32;
+      var gaussForce = lambda * 0.02;
+      if (r > 0.001) {
+        var radialForce = (targetR - r) * gaussForce;
+        var ang = Math.atan2(p.y, p.x);
+        fx += Math.cos(ang) * radialForce;
+        fy += Math.sin(ang) * radialForce;
+      }
+
+      // Over-regularization: at high lambda, destroy temporal structure
+      if (lambda > 0.2) {
+        var chaos = (lambda - 0.2) * 0.015;
+        fx += (Math.random() - 0.5) * chaos;
+        fy += (Math.random() - 0.5) * chaos;
+      }
+    }
+
+    // Add small brownian noise for liveliness
+    fx += (Math.random() - 0.5) * 0.0004;
+    fy += (Math.random() - 0.5) * 0.0004;
+
+    p.vx = (p.vx + fx) * friction;
+    p.vy = (p.vy + fy) * friction;
+    p.x += p.vx;
+    p.y += p.vy;
+
+    // Soft boundary
+    var maxR = 0.85;
+    var d = Math.sqrt(p.x * p.x + p.y * p.y);
+    if (d > maxR) {
+      var sc = maxR / d;
+      p.x *= sc;
+      p.y *= sc;
+      p.vx *= -0.3;
+      p.vy *= -0.3;
+    }
+  }
+}
+
+// ── Compute stats ──
+function computeStats() {
+  var meanX = 0, meanY = 0;
+  for (var i = 0; i < particles.length; i++) { meanX += particles[i].x; meanY += particles[i].y; }
+  meanX /= particles.length;
+  meanY /= particles.length;
+
+  var meanDist = 0, varX = 0, varY = 0;
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    meanDist += Math.sqrt(p.x * p.x + p.y * p.y);
+    varX += (p.x - meanX) * (p.x - meanX);
+    varY += (p.y - meanY) * (p.y - meanY);
+  }
+  meanDist /= particles.length;
+  varX /= particles.length;
+  varY /= particles.length;
+
+  var totalVar = varX + varY;
+  var isotropy = Math.min(varX, varY) / (Math.max(varX, varY) + 1e-8);
+
+  return { meanDist: meanDist, variance: totalVar, isotropy: isotropy };
+}
+
+// ── Compute empirical characteristic function ──
+function computeEmpiricalCF() {
+  var knots = 17;
+  var tValues = [];
+  for (var i = 0; i < knots; i++) tValues.push(i * 3 / (knots - 1));
+
+  var numProj = 8;
+  var results = [];
+  for (var i = 0; i < knots; i++) results.push(0);
+
+  // Use a fixed target sigma for normalization. This is the sigma
+  // that SIGReg wants the distribution to have. When particles collapse,
+  // projections are near zero, so cos(~0) = 1 -> empirical CF is flat at 1.0.
+  // When properly regularized, the sigma matches and the CF matches the Gaussian.
+  var targetSigma = 0.32;
+
+  for (var pp = 0; pp < numProj; pp++) {
+    var angle = (pp / numProj) * Math.PI + 0.3;
+    var ax = Math.cos(angle);
+    var ay = Math.sin(angle);
+
+    var projections = [];
+    for (var i = 0; i < particles.length; i++) {
+      projections.push(particles[i].x * ax + particles[i].y * ay);
+    }
+
+    for (var k = 0; k < knots; k++) {
+      var t = tValues[k];
+      var cosMean = 0, sinMean = 0;
+      for (var j = 0; j < projections.length; j++) {
+        cosMean += Math.cos(projections[j] * t / targetSigma);
+        sinMean += Math.sin(projections[j] * t / targetSigma);
+      }
+      cosMean /= projections.length;
+      sinMean /= projections.length;
+
+      var ref = Math.exp(-t * t / 2);
+      var err = (cosMean - ref) * (cosMean - ref) + sinMean * sinMean;
+      results[k] += err / numProj;
+    }
+  }
+
+  // Compute loss (trapezoidal integration with Gaussian window)
+  var dt = 3 / (knots - 1);
+  var loss = 0;
+  for (var k = 0; k < knots; k++) {
+    var t = tValues[k];
+    var w = Math.exp(-t * t / 2);
+    var weight = (k === 0 || k === knots - 1) ? dt : 2 * dt;
+    loss += results[k] * weight * w;
+  }
+  loss *= particles.length;
+
+  // Empirical CF values for plotting (single representative direction)
+  var angle0 = 0.3;
+  var ax0 = Math.cos(angle0), ay0 = Math.sin(angle0);
+  var cfValues = [];
+  for (var k = 0; k < knots; k++) {
+    var t = tValues[k];
+    var c = 0;
+    for (var j = 0; j < particles.length; j++) {
+      c += Math.cos((particles[j].x * ax0 + particles[j].y * ay0) * t / targetSigma);
+    }
+    cfValues.push(c / particles.length);
+  }
+
+  return { tValues: tValues, cfValues: cfValues, loss: loss };
+}
+
+// Color gradient for temporal ordering: blue -> purple -> red
+function temporalColor(t, alpha) {
+  var r = Math.round(37 + (194 - 37) * t);
+  var g = Math.round(99 + (64 - 99) * t);
+  var b = Math.round(235 + (42 - 235) * t);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+}
+
+
+// ════════════════════════════════════════════════════════════════
+// CHARACTERISTIC FUNCTION CANVAS (initialized first so drawCF is callable)
+// ════════════════════════════════════════════════════════════════
+
+var cfCanvas = document.getElementById('cf-canvas');
+var cfCtx = cfCanvas.getContext('2d');
+
+function resizeCF() {
+  var wrap = cfCanvas.parentElement;
+  var rect = wrap.getBoundingClientRect();
+  var w = rect.width;
+  var h = Math.max(280, Math.min(340, w * 0.42));
+  cfCanvas.width = w * DPR;
+  cfCanvas.height = h * DPR;
+  cfCanvas.style.height = h + 'px';
+  cfCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+resizeCF();
+window.addEventListener('resize', resizeCF);
+
+function drawCF() {
+  var w = cfCanvas.width / DPR;
+  var h = cfCanvas.height / DPR;
+  var pad = { left: 55, right: 30, top: 30, bottom: 45 };
+  var plotW = w - pad.left - pad.right;
+  var plotH = h - pad.top - pad.bottom;
+
+  cfCtx.clearRect(0, 0, w, h);
+
+  // Axes
+  cfCtx.strokeStyle = 'rgba(0,0,0,0.12)';
+  cfCtx.lineWidth = 1;
+  cfCtx.beginPath();
+  cfCtx.moveTo(pad.left, pad.top);
+  cfCtx.lineTo(pad.left, pad.top + plotH);
+  cfCtx.lineTo(pad.left + plotW, pad.top + plotH);
+  cfCtx.stroke();
+
+  // Y-axis labels and gridlines
+  cfCtx.fillStyle = 'rgba(0,0,0,0.35)';
+  cfCtx.font = '11px "Source Code Pro", monospace';
+  cfCtx.textAlign = 'right';
+  cfCtx.textBaseline = 'middle';
+  for (var v = 0; v <= 1; v += 0.25) {
+    var y = pad.top + plotH - v * plotH;
+    cfCtx.fillStyle = 'rgba(0,0,0,0.35)';
+    cfCtx.fillText(v.toFixed(2), pad.left - 8, y);
+    cfCtx.beginPath();
+    cfCtx.strokeStyle = 'rgba(0,0,0,0.04)';
+    cfCtx.moveTo(pad.left, y);
+    cfCtx.lineTo(pad.left + plotW, y);
+    cfCtx.stroke();
+  }
+
+  // X-axis labels
+  cfCtx.textAlign = 'center';
+  cfCtx.textBaseline = 'top';
+  cfCtx.fillStyle = 'rgba(0,0,0,0.35)';
+  for (var v = 0; v <= 3; v += 0.5) {
+    var x = pad.left + (v / 3) * plotW;
+    cfCtx.fillText(v.toFixed(1), x, pad.top + plotH + 8);
+  }
+
+  // Axis labels
+  cfCtx.fillStyle = 'rgba(0,0,0,0.4)';
+  cfCtx.font = '500 12px "Source Code Pro", monospace';
+  cfCtx.textAlign = 'center';
+  cfCtx.fillText('t', pad.left + plotW / 2, pad.top + plotH + 28);
+
+  cfCtx.save();
+  cfCtx.translate(14, pad.top + plotH / 2);
+  cfCtx.rotate(-Math.PI / 2);
+  cfCtx.textAlign = 'center';
+  cfCtx.fillText('\u03C6(t)', 0, 0);
+  cfCtx.restore();
+
+  // Gaussian reference curve (red)
+  cfCtx.beginPath();
+  cfCtx.strokeStyle = 'rgba(194,64,42,0.65)';
+  cfCtx.lineWidth = 2.5;
+  for (var i = 0; i <= 100; i++) {
+    var t = (i / 100) * 3;
+    var phi = Math.exp(-t * t / 2);
+    var x = pad.left + (t / 3) * plotW;
+    var y = pad.top + plotH - phi * plotH;
+    if (i === 0) cfCtx.moveTo(x, y);
+    else cfCtx.lineTo(x, y);
+  }
+  cfCtx.stroke();
+
+  // Label the reference curve
+  cfCtx.fillStyle = 'rgba(194,64,42,0.6)';
+  cfCtx.font = 'italic 13px "Spectral", serif';
+  cfCtx.textAlign = 'left';
+  var refLabelT = 0.8;
+  var refLabelPhi = Math.exp(-refLabelT * refLabelT / 2);
+  cfCtx.fillText('exp(-t\u00B2/2)', pad.left + (refLabelT / 3) * plotW + 8,
+                  pad.top + plotH - refLabelPhi * plotH - 10);
+
+  // Empirical CF
+  var cf = computeEmpiricalCF();
+
+  // Shade area between curves first (behind lines)
+  cfCtx.beginPath();
+  for (var k = 0; k < cf.tValues.length; k++) {
+    var x = pad.left + (cf.tValues[k] / 3) * plotW;
+    var ref = Math.exp(-cf.tValues[k] * cf.tValues[k] / 2);
+    var y = pad.top + plotH - Math.max(-0.2, Math.min(1.1, ref)) * plotH;
+    if (k === 0) cfCtx.moveTo(x, y);
+    else cfCtx.lineTo(x, y);
+  }
+  for (var k = cf.tValues.length - 1; k >= 0; k--) {
+    var x = pad.left + (cf.tValues[k] / 3) * plotW;
+    var y = pad.top + plotH - Math.max(-0.2, Math.min(1.1, cf.cfValues[k])) * plotH;
+    cfCtx.lineTo(x, y);
+  }
+  cfCtx.closePath();
+  cfCtx.fillStyle = 'rgba(37,99,235,0.07)';
+  cfCtx.fill();
+
+  // Empirical CF line
+  cfCtx.beginPath();
+  cfCtx.strokeStyle = 'rgba(37,99,235,0.6)';
+  cfCtx.lineWidth = 2;
+  for (var k = 0; k < cf.tValues.length; k++) {
+    var x = pad.left + (cf.tValues[k] / 3) * plotW;
+    var y = pad.top + plotH - Math.max(-0.2, Math.min(1.1, cf.cfValues[k])) * plotH;
+    if (k === 0) cfCtx.moveTo(x, y);
+    else cfCtx.lineTo(x, y);
+  }
+  cfCtx.stroke();
+
+  // Empirical CF dots
+  for (var k = 0; k < cf.tValues.length; k++) {
+    var x = pad.left + (cf.tValues[k] / 3) * plotW;
+    var y = pad.top + plotH - Math.max(-0.2, Math.min(1.1, cf.cfValues[k])) * plotH;
+    cfCtx.beginPath();
+    cfCtx.arc(x, y, 4, 0, Math.PI * 2);
+    cfCtx.fillStyle = 'rgba(37,99,235,0.75)';
+    cfCtx.fill();
+    cfCtx.beginPath();
+    cfCtx.arc(x, y, 4, 0, Math.PI * 2);
+    cfCtx.strokeStyle = 'white';
+    cfCtx.lineWidth = 1.5;
+    cfCtx.stroke();
+  }
+
+  // Legend
+  var lx = pad.left + 10;
+  var ly = pad.top + 8;
+  cfCtx.fillStyle = 'rgba(194,64,42,0.65)';
+  cfCtx.fillRect(lx, ly, 16, 3);
+  cfCtx.fillStyle = 'rgba(0,0,0,0.4)';
+  cfCtx.font = '11px "Source Code Pro", monospace';
+  cfCtx.textAlign = 'left';
+  cfCtx.fillText('Gaussian ref', lx + 22, ly + 5);
+
+  cfCtx.fillStyle = 'rgba(37,99,235,0.75)';
+  cfCtx.beginPath();
+  cfCtx.arc(lx + 8, ly + 20, 3.5, 0, Math.PI * 2);
+  cfCtx.fill();
+  cfCtx.fillStyle = 'rgba(0,0,0,0.4)';
+  cfCtx.fillText('Empirical CF', lx + 22, ly + 23);
+
+  // SIGReg loss value
+  document.getElementById('stat-sigreg').textContent = cf.loss.toFixed(2);
+}
+
+
+// ════════════════════════════════════════════════════════════════
+// HERO CANVAS — Embedding Space Playground
+// ════════════════════════════════════════════════════════════════
+
+(function() {
+  var canvas = document.getElementById('hero-canvas');
+  var wrap = document.getElementById('hero-wrap');
+  var ctx = canvas.getContext('2d');
+
+  function resize() {
+    var rect = wrap.getBoundingClientRect();
+    var w = rect.width;
+    var h = Math.max(420, Math.min(520, w * 0.62));
+    canvas.width = w * DPR;
+    canvas.height = h * DPR;
+    canvas.style.height = h + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function drawRoundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function draw() {
+    var w = canvas.width / DPR;
+    var h = canvas.height / DPR;
+    var cx = w / 2;
+    var cy = h / 2;
+    var scale = Math.min(w, h) * 0.48;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Background grid (very subtle)
+    ctx.strokeStyle = 'rgba(0,0,0,0.025)';
+    ctx.lineWidth = 0.5;
+    var gridStep = scale * 0.2;
+    for (var gx = cx % gridStep; gx < w; gx += gridStep) {
+      ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, h); ctx.stroke();
+    }
+    for (var gy = cy % gridStep; gy < h; gy += gridStep) {
+      ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
+    }
+
+    // Draw axes
+    ctx.strokeStyle = 'rgba(0,0,0,0.07)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
+
+    // Draw Gaussian contours (1, 2, 3 sigma)
+    var sigma = 0.32 * scale;
+    var contourAlpha = currentLambda > 0.01 ? Math.min(1, currentLambda * 5) : 0;
+    if (contourAlpha > 0.01) {
+      for (var s = 3; s >= 1; s--) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, sigma * s, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(194,64,42,' + (0.06 + 0.03 * (4 - s)) * contourAlpha + ')';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Label
+        ctx.fillStyle = 'rgba(194,64,42,' + (0.2 + 0.05 * (4 - s)) * contourAlpha + ')';
+        ctx.font = '10px "Source Code Pro", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(s + '\u03C3', cx + sigma * s + 5, cy - 4);
+      }
+    }
+
+    // Draw particles sorted by temporal index
+    var sorted = particles.slice().sort(function(a, b) { return a.t - b.t; });
+    for (var i = 0; i < sorted.length; i++) {
+      var p = sorted[i];
+      var px = cx + p.x * scale;
+      var py = cy + p.y * scale;
+      var radius = 4.5;
+
+      // Glow
+      ctx.beginPath();
+      ctx.arc(px, py, radius + 4, 0, Math.PI * 2);
+      ctx.fillStyle = temporalColor(p.t, 0.12);
+      ctx.fill();
+
+      // Main dot
+      ctx.beginPath();
+      ctx.arc(px, py, radius, 0, Math.PI * 2);
+      ctx.fillStyle = temporalColor(p.t, 0.8);
+      ctx.fill();
+
+      // Specular highlight
+      ctx.beginPath();
+      ctx.arc(px - 1.2, py - 1.2, 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.fill();
+    }
+
+    // Temporal gradient legend
+    var legendX = 16;
+    var legendY = h - 40;
+    var legendW = 90;
+    var legendH = 8;
+    var grad = ctx.createLinearGradient(legendX, 0, legendX + legendW, 0);
+    grad.addColorStop(0, temporalColor(0, 0.85));
+    grad.addColorStop(1, temporalColor(1, 0.85));
+    ctx.fillStyle = grad;
+    drawRoundRect(ctx, legendX, legendY, legendW, legendH, 3);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.font = '10px "Source Code Pro", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('t=0', legendX, legendY + 22);
+    ctx.textAlign = 'right';
+    ctx.fillText('t=T', legendX + legendW, legendY + 22);
+
+    // Mode label
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.font = '500 11px "Source Code Pro", monospace';
+    ctx.textAlign = 'left';
+    var modeText = '';
+    if (currentLambda < 0.01) modeText = 'NO REGULARIZATION (COLLAPSE)';
+    else if (currentLambda <= 0.15) modeText = 'SIGREG ACTIVE (\u03BB=' + currentLambda.toFixed(2) + ')';
+    else modeText = '\u03BB TOO HIGH (' + currentLambda.toFixed(2) + ')';
+    ctx.fillText(modeText, 16, 24);
+
+    // Update stats display
+    var stats = computeStats();
+    document.getElementById('stat-dist').textContent = stats.meanDist.toFixed(3);
+    document.getElementById('stat-var').textContent = stats.variance.toFixed(4);
+    document.getElementById('stat-iso').textContent = stats.isotropy.toFixed(3);
+  }
+
+  // ── Main animation loop ──
+  function animate() {
+    simulateParticles();
+    draw();
+    drawCF();
+    requestAnimationFrame(animate);
+  }
+  animate();
+
+  // ── Controls ──
+  var slider = document.getElementById('lambda-slider');
+  var sliderVal = document.getElementById('lambda-value');
+  var modeButtons = document.querySelectorAll('#hero-controls .mode-btn');
+
+  slider.addEventListener('input', function() {
+    currentLambda = parseFloat(this.value);
+    sliderVal.textContent = currentLambda.toFixed(2);
+    modeButtons.forEach(function(b) { b.classList.remove('active'); });
+    if (currentLambda < 0.01) {
+      modeButtons[0].classList.add('active');
+    } else if (currentLambda <= 0.15) {
+      modeButtons[1].classList.add('active');
+    } else {
+      modeButtons[2].classList.add('active');
+    }
+  });
+
+  modeButtons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      modeButtons.forEach(function(b) { b.classList.remove('active'); });
+      this.classList.add('active');
+      var mode = this.dataset.mode;
+      if (mode === 'collapse') { currentLambda = 0; slider.value = 0; sliderVal.textContent = '0.00'; }
+      else if (mode === 'sigreg') { currentLambda = 0.09; slider.value = 0.09; sliderVal.textContent = '0.09'; }
+      else if (mode === 'too-high') { currentLambda = 0.50; slider.value = 0.50; sliderVal.textContent = '0.50'; }
+    });
+  });
+
+  document.getElementById('hero-reset').addEventListener('click', function() {
+    initParticles();
+  });
+})();
+
+
+// ════════════════════════════════════════════════════════════════
+// SIGREG ALGORITHM VISUALIZATION
+// ════════════════════════════════════════════════════════════════
+
+(function() {
+  var canvas = document.getElementById('algo-canvas');
+  var ctx = canvas.getContext('2d');
+  var wrap = canvas.parentElement;
+  var currentAlgoStep = 1;
+  var autoPlaying = false;
+  var autoPlayTimer = null;
+  var animFrame = 0;
+
+  function resize() {
+    var rect = wrap.getBoundingClientRect();
+    var w = rect.width;
+    var h = Math.max(280, Math.min(360, w * 0.44));
+    canvas.width = w * DPR;
+    canvas.height = h * DPR;
+    canvas.style.height = h + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Random projection directions for visualization
+  var numVizProj = 12;
+  var projAngles = [];
+  for (var i = 0; i < numVizProj; i++) {
+    projAngles.push((i / numVizProj) * Math.PI + 0.2);
+  }
+
+  function setStep(step) {
+    currentAlgoStep = step;
+    document.getElementById('algo-step-label').textContent = 'Step ' + step + ' / 5';
+    var steps = document.querySelectorAll('.algo-step');
+    for (var i = 0; i < steps.length; i++) {
+      steps[i].classList.toggle('active', parseInt(steps[i].dataset.step) === step);
+    }
+  }
+
+  function drawEmbeddings(alpha) {
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+      var px = embCx + p.x * embScale;
+      var py = embCy + p.y * embScale;
+      ctx.beginPath();
+      ctx.arc(px, py, 3, 0, Math.PI * 2);
+      ctx.fillStyle = temporalColor(p.t, alpha);
+      ctx.fill();
+    }
+  }
+
+  var embCx, embCy, embScale;
+
+  function draw() {
+    var w = canvas.width / DPR;
+    var h = canvas.height / DPR;
+    ctx.clearRect(0, 0, w, h);
+    animFrame++;
+
+    embCx = w * 0.28;
+    embCy = h * 0.5;
+    embScale = Math.min(w * 0.22, h * 0.38);
+
+    if (currentAlgoStep === 1) {
+      // Step 1: Show random unit vectors emanating from origin
+      drawEmbeddings(0.3);
+
+      for (var i = 0; i < numVizProj; i++) {
+        var angle = projAngles[i];
+        var len = embScale * 1.3;
+        var pulse = 0.85 + 0.15 * Math.sin(animFrame * 0.04 + i * 0.5);
+        ctx.beginPath();
+        ctx.moveTo(embCx, embCy);
+        ctx.lineTo(embCx + Math.cos(angle) * len * pulse, embCy + Math.sin(angle) * len * pulse);
+        ctx.strokeStyle = 'rgba(37,99,235,' + (0.25 + 0.15 * pulse) + ')';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Arrow head
+        var ax = embCx + Math.cos(angle) * len * pulse;
+        var ay = embCy + Math.sin(angle) * len * pulse;
+        var arrowLen = 7;
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(ax - Math.cos(angle - 0.3) * arrowLen, ay - Math.sin(angle - 0.3) * arrowLen);
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(ax - Math.cos(angle + 0.3) * arrowLen, ay - Math.sin(angle + 0.3) * arrowLen);
+        ctx.stroke();
+      }
+
+      // Label
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.font = '500 12px "Source Code Pro", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(numVizProj + ' random unit vectors', embCx, h - 16);
+      ctx.fillText('(1024 in practice)', embCx, h - 2);
+
+      // Right-side explanation
+      ctx.font = 'italic 14px "Spectral", serif';
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.textAlign = 'left';
+      ctx.fillText('A = randn(D, 1024)', w * 0.58, h * 0.4);
+      ctx.fillText('A /= ||A||', w * 0.58, h * 0.4 + 22);
+    }
+
+    else if (currentAlgoStep === 2) {
+      // Step 2: Show projection onto a single direction
+      var projIdx = Math.floor(animFrame / 120) % numVizProj;
+      var projAngle = projAngles[projIdx];
+      var dirX = Math.cos(projAngle);
+      var dirY = Math.sin(projAngle);
+
+      // Draw projection line
+      var lineLen = embScale * 1.5;
+      ctx.beginPath();
+      ctx.moveTo(embCx - dirX * lineLen, embCy - dirY * lineLen);
+      ctx.lineTo(embCx + dirX * lineLen, embCy + dirY * lineLen);
+      ctx.strokeStyle = 'rgba(37,99,235,0.25)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      drawEmbeddings(0.35);
+
+      // Project each particle and draw projection
+      for (var i = 0; i < particles.length; i++) {
+        var p = particles[i];
+        var px = embCx + p.x * embScale;
+        var py = embCy + p.y * embScale;
+        var dot = p.x * dirX + p.y * dirY;
+        var projPx = embCx + dot * embScale * dirX;
+        var projPy = embCy + dot * embScale * dirY;
+
+        // Dashed line from particle to projection
+        ctx.beginPath();
+        ctx.setLineDash([2, 3]);
+        ctx.moveTo(px, py);
+        ctx.lineTo(projPx, projPy);
+        ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Projected dot on the line
+        ctx.beginPath();
+        ctx.arc(projPx, projPy, 3, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(37,99,235,0.65)';
+        ctx.fill();
+      }
+
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.font = '500 12px "Source Code Pro", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('1D projection onto direction ' + (projIdx + 1), w * 0.5, h - 10);
+
+      // 1D histogram on right side
+      var histLeft = w * 0.6;
+      var histW = w * 0.35;
+      var histH = h * 0.7;
+      var histTop = h * 0.15;
+
+      // vertical axis for histogram
+      ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(histLeft, histTop);
+      ctx.lineTo(histLeft, histTop + histH);
+      ctx.stroke();
+
+      // Collect projection values
+      var projVals = [];
+      for (var i = 0; i < particles.length; i++) {
+        projVals.push(particles[i].x * dirX + particles[i].y * dirY);
+      }
+      // Draw small horizontal ticks for each projection
+      for (var i = 0; i < projVals.length; i++) {
+        var yy = histTop + histH / 2 - (projVals[i] / 0.8) * (histH / 2);
+        if (yy >= histTop && yy <= histTop + histH) {
+          ctx.beginPath();
+          ctx.moveTo(histLeft - 3, yy);
+          ctx.lineTo(histLeft + 8, yy);
+          ctx.strokeStyle = 'rgba(37,99,235,0.4)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
+
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.font = '10px "Source Code Pro", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('projected values', histLeft + 14, histTop + 8);
+    }
+
+    else if (currentAlgoStep === 3) {
+      // Step 3: Show empirical CF computation with cos/sin
+      var plotLeft = w * 0.52;
+      var plotTop = h * 0.12;
+      var plotW = w * 0.42;
+      var plotH = h * 0.7;
+
+      drawEmbeddings(0.25);
+
+      // Arrow from embeddings to plot
+      ctx.beginPath();
+      ctx.moveTo(embCx + embScale * 0.7, embCy);
+      ctx.lineTo(plotLeft - 12, embCy);
+      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Arrowhead
+      ctx.beginPath();
+      ctx.moveTo(plotLeft - 12, embCy);
+      ctx.lineTo(plotLeft - 18, embCy - 3);
+      ctx.lineTo(plotLeft - 18, embCy + 3);
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.fill();
+
+      // Plot frame
+      ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(plotLeft, plotTop, plotW, plotH);
+
+      var algoSigma = 0.32; // fixed target sigma
+
+      var knots = 17;
+      var angle0 = projAngles[0];
+      var ax0 = Math.cos(angle0), ay0 = Math.sin(angle0);
+      var proj0 = [];
+      for (var i = 0; i < particles.length; i++) {
+        proj0.push(particles[i].x * ax0 + particles[i].y * ay0);
+      }
+
+      // cos mean curve (blue)
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(37,99,235,0.7)';
+      ctx.lineWidth = 2;
+      for (var k = 0; k < knots; k++) {
+        var t = k * 3 / (knots - 1);
+        var cosMean = 0;
+        for (var j = 0; j < proj0.length; j++) cosMean += Math.cos(proj0[j] * t / algoSigma);
+        cosMean /= proj0.length;
+        var x = plotLeft + (k / (knots - 1)) * plotW;
+        var y = plotTop + plotH - Math.max(-0.1, Math.min(1.1, cosMean)) * plotH;
+        if (k === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // sin mean curve (green)
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(5,150,105,0.6)';
+      ctx.lineWidth = 2;
+      for (var k = 0; k < knots; k++) {
+        var t = k * 3 / (knots - 1);
+        var sinMean = 0;
+        for (var j = 0; j < proj0.length; j++) sinMean += Math.sin(proj0[j] * t / algoSigma);
+        sinMean /= proj0.length;
+        var x = plotLeft + (k / (knots - 1)) * plotW;
+        var y = plotTop + plotH * 0.5 - sinMean * plotH * 0.45;
+        if (k === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Zero line for sin
+      ctx.beginPath();
+      ctx.setLineDash([2,3]);
+      ctx.moveTo(plotLeft, plotTop + plotH * 0.5);
+      ctx.lineTo(plotLeft + plotW, plotTop + plotH * 0.5);
+      ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Labels
+      ctx.font = '500 11px "Source Code Pro", monospace';
+      ctx.fillStyle = 'rgba(37,99,235,0.65)';
+      ctx.textAlign = 'left';
+      ctx.fillText('mean(cos(x\u00B7t))', plotLeft + 4, plotTop - 6);
+      ctx.fillStyle = 'rgba(5,150,105,0.6)';
+      ctx.fillText('mean(sin(x\u00B7t))', plotLeft + plotW * 0.5, plotTop - 6);
+
+      // Axes
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.font = '10px "Source Code Pro", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('t (0 to 3)', plotLeft + plotW / 2, plotTop + plotH + 14);
+    }
+
+    else if (currentAlgoStep === 4) {
+      // Step 4: Overlay empirical vs reference
+      var plotLeft = w * 0.1;
+      var plotTop = h * 0.12;
+      var plotW = w * 0.8;
+      var plotH = h * 0.7;
+
+      ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(plotLeft, plotTop, plotW, plotH);
+
+      // Reference curve (red)
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(194,64,42,0.65)';
+      ctx.lineWidth = 2.5;
+      for (var i = 0; i <= 80; i++) {
+        var t = (i / 80) * 3;
+        var phi = Math.exp(-t * t / 2);
+        var x = plotLeft + (i / 80) * plotW;
+        var y = plotTop + plotH - phi * plotH;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Empirical CF
+      var cf = computeEmpiricalCF();
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(37,99,235,0.6)';
+      ctx.lineWidth = 2;
+      for (var k = 0; k < cf.tValues.length; k++) {
+        var x = plotLeft + (cf.tValues[k] / 3) * plotW;
+        var y = plotTop + plotH - Math.max(-0.1, Math.min(1.1, cf.cfValues[k])) * plotH;
+        if (k === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Dots + error bars
+      for (var k = 0; k < cf.tValues.length; k++) {
+        var t = cf.tValues[k];
+        var ref = Math.exp(-t * t / 2);
+        var emp = Math.max(-0.1, Math.min(1.1, cf.cfValues[k]));
+        var x = plotLeft + (t / 3) * plotW;
+        var yRef = plotTop + plotH - ref * plotH;
+        var yEmp = plotTop + plotH - emp * plotH;
+
+        // Error bar
+        if (Math.abs(yRef - yEmp) > 2) {
+          ctx.beginPath();
+          ctx.moveTo(x, yRef);
+          ctx.lineTo(x, yEmp);
+          ctx.strokeStyle = 'rgba(194,64,42,0.3)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+
+        // Empirical dot
+        ctx.beginPath();
+        ctx.arc(x, yEmp, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(37,99,235,0.7)';
+        ctx.fill();
+      }
+
+      // Labels
+      ctx.font = '500 12px "Source Code Pro", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(194,64,42,0.6)';
+      ctx.fillText('Gaussian ref \u03C6(t) = exp(-t\u00B2/2)', plotLeft + 8, plotTop + 16);
+      ctx.fillStyle = 'rgba(37,99,235,0.6)';
+      ctx.fillText('Empirical \u03C6(t)', plotLeft + 8, plotTop + 32);
+
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.font = '10px "Source Code Pro", monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText('1.0', plotLeft - 4, plotTop + 4);
+      ctx.fillText('0.0', plotLeft - 4, plotTop + plotH + 4);
+      ctx.textAlign = 'center';
+      ctx.fillText('t = 0', plotLeft, plotTop + plotH + 14);
+      ctx.fillText('t = 3', plotLeft + plotW, plotTop + plotH + 14);
+    }
+
+    else if (currentAlgoStep === 5) {
+      // Step 5: Shade integrated area with Gaussian window
+      var plotLeft = w * 0.1;
+      var plotTop = h * 0.12;
+      var plotW = w * 0.8;
+      var plotH = h * 0.7;
+
+      ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(plotLeft, plotTop, plotW, plotH);
+
+      var cf = computeEmpiricalCF();
+
+      // Shade the area between curves with gradient for Gaussian window weighting
+      ctx.beginPath();
+      for (var k = 0; k < cf.tValues.length; k++) {
+        var t = cf.tValues[k];
+        var ref = Math.exp(-t * t / 2);
+        var x = plotLeft + (t / 3) * plotW;
+        var y = plotTop + plotH - Math.max(-0.1, Math.min(1.1, ref)) * plotH;
+        if (k === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      for (var k = cf.tValues.length - 1; k >= 0; k--) {
+        var t = cf.tValues[k];
+        var emp = Math.max(-0.1, Math.min(1.1, cf.cfValues[k]));
+        var x = plotLeft + (t / 3) * plotW;
+        var y = plotTop + plotH - emp * plotH;
+        ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+
+      var areaGrad = ctx.createLinearGradient(plotLeft, 0, plotLeft + plotW, 0);
+      areaGrad.addColorStop(0, 'rgba(194,64,42,0.25)');
+      areaGrad.addColorStop(0.5, 'rgba(194,64,42,0.12)');
+      areaGrad.addColorStop(1, 'rgba(194,64,42,0.02)');
+      ctx.fillStyle = areaGrad;
+      ctx.fill();
+
+      // Reference curve
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(194,64,42,0.6)';
+      ctx.lineWidth = 2;
+      for (var i = 0; i <= 80; i++) {
+        var t = (i / 80) * 3;
+        var phi = Math.exp(-t * t / 2);
+        var x = plotLeft + (i / 80) * plotW;
+        var y = plotTop + plotH - phi * plotH;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Empirical
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(37,99,235,0.6)';
+      ctx.lineWidth = 2;
+      for (var k = 0; k < cf.tValues.length; k++) {
+        var x = plotLeft + (cf.tValues[k] / 3) * plotW;
+        var y = plotTop + plotH - Math.max(-0.1, Math.min(1.1, cf.cfValues[k])) * plotH;
+        if (k === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Gaussian window curve (dashed, on a separate scale)
+      ctx.beginPath();
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = 'rgba(5,150,105,0.45)';
+      ctx.lineWidth = 1.5;
+      for (var i = 0; i <= 80; i++) {
+        var t = (i / 80) * 3;
+        var wVal = Math.exp(-t * t / 2);
+        var x = plotLeft + (i / 80) * plotW;
+        var y = plotTop + plotH - wVal * plotH * 0.3;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Labels
+      ctx.font = '500 12px "Source Code Pro", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(5,150,105,0.5)';
+      ctx.fillText('Gaussian window w(t)', plotLeft + 8, plotTop + plotH - plotH * 0.3 * Math.exp(-0.5) + 16);
+      ctx.fillStyle = 'rgba(194,64,42,0.55)';
+      ctx.fillText('Weighted error (shaded)', plotLeft + plotW * 0.12, plotTop + plotH * 0.6);
+
+      // Loss value
+      ctx.font = '500 14px "Source Code Pro", monospace';
+      ctx.textAlign = 'right';
+      ctx.fillStyle = 'rgba(194,64,42,0.8)';
+      ctx.fillText('SIGReg loss = ' + cf.loss.toFixed(2), plotLeft + plotW - 4, plotTop + 18);
+
+      // Axes
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.font = '10px "Source Code Pro", monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText('1.0', plotLeft - 4, plotTop + 4);
+      ctx.fillText('0.0', plotLeft - 4, plotTop + plotH + 4);
+      ctx.textAlign = 'center';
+      ctx.fillText('t = 0', plotLeft, plotTop + plotH + 14);
+      ctx.fillText('t = 3', plotLeft + plotW, plotTop + plotH + 14);
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  draw();
+
+  // Controls
+  document.getElementById('algo-prev').addEventListener('click', function() {
+    if (currentAlgoStep > 1) setStep(currentAlgoStep - 1);
+  });
+
+  document.getElementById('algo-next').addEventListener('click', function() {
+    if (currentAlgoStep < 5) setStep(currentAlgoStep + 1);
+  });
+
+  document.getElementById('algo-play').addEventListener('click', function() {
+    if (autoPlaying) {
+      autoPlaying = false;
+      clearInterval(autoPlayTimer);
+      this.textContent = 'Auto-play';
+      return;
+    }
+    autoPlaying = true;
+    this.textContent = 'Pause';
+    var btn = this;
+    autoPlayTimer = setInterval(function() {
+      if (currentAlgoStep < 5) {
+        setStep(currentAlgoStep + 1);
+      } else {
+        setStep(1);
+      }
+    }, 3000);
+  });
+
+  // Click on step items
+  var stepEls = document.querySelectorAll('.algo-step');
+  for (var i = 0; i < stepEls.length; i++) {
+    stepEls[i].addEventListener('click', function() {
+      setStep(parseInt(this.dataset.step));
+    });
+  }
+})();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>03 &mdash; Prediction Pipeline &amp; AdaLN-zero</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Source+Code+Pro:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #faf9f6;
+    --bg-alt: #f3f0eb;
+    --text: #1a1a2e;
+    --text-secondary: #4a4a6a;
+    --text-muted: #8888a0;
+    --accent: #c2402a;
+    --accent-hover: #a03520;
+    --blue: #2563eb;
+    --green: #059669;
+    --violet: #7c3aed;
+    --amber: #d97706;
+    --border: #e0ddd5;
+    --card-shadow: 0 2px 8px rgba(26,26,46,0.06), 0 1px 3px rgba(26,26,46,0.04);
+
+    --font-serif: 'Spectral', Georgia, 'Times New Roman', serif;
+    --font-display: 'Newsreader', 'Spectral', Georgia, serif;
+    --font-mono: 'Source Code Pro', 'Menlo', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-serif);
+    font-size: 18px;
+    line-height: 1.78;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .article {
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* -- Nav -- */
+  .back-link {
+    display: inline-block;
+    margin-top: 24px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .back-link:hover { color: var(--accent); }
+
+  /* -- Header -- */
+  header {
+    padding: 48px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+
+  .overline {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--text);
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    font-family: var(--font-serif);
+    font-size: 1.1rem;
+    font-weight: 300;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    max-width: 620px;
+  }
+
+  /* -- Sections -- */
+  h2 {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 56px 0 16px;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: var(--text);
+    margin: 32px 0 12px;
+  }
+
+  p {
+    margin-bottom: 20px;
+    color: var(--text-secondary);
+  }
+
+  p strong {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* -- Figure containers -- */
+  .figure {
+    margin: 32px 0;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+  }
+
+  .figure-wide {
+    margin-left: -60px;
+    margin-right: -60px;
+  }
+
+  @media (max-width: 860px) {
+    .figure-wide { margin-left: 0; margin-right: 0; }
+  }
+
+  .figure-canvas-wrap {
+    position: relative;
+    width: 100%;
+  }
+
+  .figure-canvas-wrap canvas {
+    display: block;
+    width: 100%;
+  }
+
+  figcaption {
+    padding: 12px 20px 14px;
+    font-size: 14px;
+    font-family: var(--font-serif);
+    font-weight: 300;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    line-height: 1.55;
+  }
+
+  figcaption strong {
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  /* -- Controls -- */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-alt);
+  }
+
+  .control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .control-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .mode-btn {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: white;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .mode-btn:hover {
+    border-color: var(--text-muted);
+  }
+
+  .mode-btn.active {
+    background: var(--text);
+    color: white;
+    border-color: var(--text);
+  }
+
+  .btn-small {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: white;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-small:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 140px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  .slider-value {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* -- Stats overlay -- */
+  .stats-overlay {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(255,255,255,0.92);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .stats-overlay .stat-val {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* -- Code blocks -- */
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--bg-alt);
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: var(--accent);
+  }
+
+  pre {
+    background: #1a1a2e;
+    color: #e0e0e8;
+    padding: 20px 24px;
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.65;
+    overflow-x: auto;
+    margin: 24px 0;
+  }
+
+  pre .kw { color: #c084fc; }
+  pre .fn { color: #60a5fa; }
+  pre .cm { color: #6b7280; font-style: italic; }
+  pre .st { color: #34d399; }
+  pre .op { color: #f9a8d4; }
+  pre .nb { color: #fbbf24; }
+
+  /* -- Math formulas -- */
+  .math-block {
+    text-align: center;
+    padding: 24px 20px;
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 1.1em;
+    color: var(--text);
+    background: var(--bg-alt);
+    border-radius: 6px;
+    margin: 24px 0;
+    line-height: 2;
+  }
+
+  .math-block .math-var { color: var(--blue); }
+  .math-block .math-op { color: var(--text-secondary); font-style: normal; }
+  .math-block .math-accent { color: var(--accent); }
+
+  /* -- Legend -- */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-alt);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .legend-line {
+    width: 18px;
+    height: 2px;
+    flex-shrink: 0;
+  }
+
+  /* -- Footer -- */
+  footer {
+    margin-top: 72px;
+    padding: 32px 0;
+    border-top: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  footer a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  footer a:hover { color: var(--accent); }
+
+  /* -- Tooltip -- */
+  .hover-term {
+    border-bottom: 1px dashed var(--text-muted);
+    cursor: help;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .hover-term:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* -- AdaLN diagram -- */
+  .adaln-svg-wrap {
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
+  }
+
+  .adaln-svg-wrap svg text {
+    font-family: var(--font-mono);
+  }
+</style>
+</head>
+<body>
+
+<div class="article">
+  <a href="index.html" class="back-link">&larr; Back to index</a>
+
+  <header>
+    <span class="overline">Part 03</span>
+    <h1>Prediction Pipeline &amp; AdaLN-zero</h1>
+    <p class="subtitle">The representation is only as good as the task it is trained for. In LeWM, that task is next-state prediction: given a window of 3 past frame embeddings and the actions taken between them, predict where the next frame will land in embedding space.</p>
+  </header>
+
+  <h2>Predicting in Embedding Space</h2>
+
+  <p>The prediction happens entirely in the learned embedding space &mdash; never in pixel space. This is what makes LeWM a <strong>Joint Embedding Predictive Architecture</strong>: it predicts embeddings, not images. The MSE between predicted and actual embeddings provides the gradient signal that shapes both the predictor and the encoder.</p>
+
+  <!-- ============== HERO VIZ: 2D Embedding Space ============== -->
+  <figure class="figure figure-wide">
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#2563eb;"></div> Context embeddings</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#059669;"></div> Target (ground truth)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#c2402a;"></div> Predicted embedding</div>
+      <div class="legend-item"><div class="legend-line" style="background:#d97706;"></div> Action vectors</div>
+      <div class="legend-item"><div class="legend-line" style="background:#c2402a; border-top: 1px dashed #c2402a; height:0;"></div> MSE error</div>
+    </div>
+    <div class="controls">
+      <button class="btn-small" id="heroReset">Reset positions</button>
+      <button class="mode-btn" id="heroAnimate">Step-through</button>
+      <span class="control-label" id="heroStepLabel" style="margin-left:8px;"></span>
+    </div>
+    <div class="figure-canvas-wrap">
+      <canvas id="heroCanvas" width="860" height="500"></canvas>
+      <div class="stats-overlay" id="heroStats">
+        MSE: <span class="stat-val" id="heroMSE">0.000</span>
+      </div>
+    </div>
+    <figcaption><strong>Figure 1.</strong> Drag any dot to explore how the ARPredictor maps context embeddings to a predicted next-state. The predicted embedding (red) is computed from the blue context dots and orange action vectors. The dashed line shows the MSE error to the green ground truth.</figcaption>
+  </figure>
+
+  <h2>AdaLN-zero: Action-conditioned Modulation</h2>
+
+  <p>How does the predictor know what action was taken? Through <strong>Adaptive Layer Normalization with Zero-initialization</strong> (AdaLN-zero). Rather than concatenating actions to the input, the action embedding modulates the transformer's internal representations by adjusting the normalization statistics &mdash; shifting, scaling, and gating the signal at each layer.</p>
+
+  <p>At initialization, the linear layer that produces the modulation parameters has all weights and biases set to zero. This means <code>shift=0</code>, <code>scale=0</code>, <code>gate=0</code>, so the block initially behaves as an identity function. Training gradually learns how to modulate the signal based on the action taken.</p>
+
+  <!-- ============== ADALN VIZ ============== -->
+  <figure class="figure figure-wide">
+    <div class="controls">
+      <div class="control-group">
+        <span class="control-label">Action strength</span>
+        <input type="range" id="actionSlider" min="0" max="100" value="0">
+        <span class="slider-value" id="actionVal">0.00</span>
+      </div>
+      <button class="btn-small" id="adaln-reset">Reset</button>
+    </div>
+    <div class="figure-canvas-wrap">
+      <canvas id="adalnCanvas" width="860" height="540"></canvas>
+    </div>
+    <figcaption><strong>Figure 2.</strong> A single ConditionalBlock. The action embedding <em>c</em> produces 6 modulation parameters via SiLU &rarr; Linear. At zero action strength, the block is identity (zero-init). Increase the slider to see how shift, scale, and gate modulate the signal through both the attention and MLP paths. Formula: <code>x = x + gate_msa * attn(modulate(norm1(x), shift, scale))</code></figcaption>
+  </figure>
+
+  <h2>Sliding Context Window</h2>
+
+  <p>With <code>history_size=3</code> and <code>num_preds=1</code>, each training sample is a sequence of 4 frames. The first 3 provide context; the 4th is the prediction target. During evaluation, the predictor chains predictions autoregressively &mdash; each predicted embedding becomes part of the context for the next prediction.</p>
+
+  <!-- ============== SLIDING WINDOW VIZ ============== -->
+  <figure class="figure figure-wide">
+    <div class="controls">
+      <button class="btn-small" id="windowStep">Step Forward</button>
+      <button class="mode-btn" id="windowAuto">Auto-play</button>
+      <span class="control-label" id="windowLabel" style="margin-left:8px;">Window at frame 0</span>
+    </div>
+    <div class="figure-canvas-wrap">
+      <canvas id="windowCanvas" width="860" height="260"></canvas>
+    </div>
+    <figcaption><strong>Figure 3.</strong> A sliding window of size 3 (blue highlight) moves along a sequence of frames. At each position, the ARPredictor uses the context embeddings and action vectors to predict the next frame embedding (red dot), which is compared to the ground truth target (green dot). Code: <code>ctx_emb = emb[:, :ctx_len]</code>, <code>tgt_emb = emb[:, n_preds:]</code></figcaption>
+  </figure>
+
+  <h2>Loss Computation &amp; Gradient Flow</h2>
+
+  <p>The prediction loss is a simple MSE between the predicted and target embeddings. But there is a crucial subtlety: <strong>gradients flow back through the predictor AND the encoder</strong>. The prediction loss trains both networks simultaneously &mdash; the encoder must produce embeddings that are predictable, while the predictor must learn to predict them accurately.</p>
+
+  <div class="math-block">
+    <span class="math-var">L</span><sub>pred</sub> <span class="math-op">=</span>
+    <span class="math-op">mean(</span>(<span class="math-accent">pred_emb</span> <span class="math-op">&minus;</span> <span class="math-var">tgt_emb</span>)<sup>2</sup><span class="math-op">)</span>
+  </div>
+
+  <!-- ============== LOSS DIAGRAM ============== -->
+  <figure class="figure figure-wide">
+    <div class="figure-canvas-wrap">
+      <canvas id="lossCanvas" width="860" height="340"></canvas>
+    </div>
+    <figcaption><strong>Figure 4.</strong> Gradient flow diagram. Hover over each component to see how gradients propagate. The prediction loss trains both the ARPredictor (to predict better) and the Encoder (to produce more predictable embeddings). The SIGReg loss prevents representation collapse.</figcaption>
+  </figure>
+
+  <pre><span class="cm"># From train.py &mdash; the core prediction loop</span>
+ctx_emb <span class="op">=</span> emb[:, :ctx_len]          <span class="cm"># first 3 frame embeddings</span>
+ctx_act <span class="op">=</span> act_emb[:, :ctx_len]      <span class="cm"># corresponding actions</span>
+tgt_emb <span class="op">=</span> emb[:, n_preds:]          <span class="cm"># target: frames 1,2,3</span>
+pred_emb <span class="op">=</span> self.model.<span class="fn">predict</span>(ctx_emb, ctx_act)
+
+output[<span class="st">"pred_loss"</span>] <span class="op">=</span> (pred_emb <span class="op">-</span> tgt_emb).<span class="fn">pow</span>(<span class="nb">2</span>).<span class="fn">mean</span>()</pre>
+
+  <footer>
+    <a href="02-embedding-space.html">&larr; Part 02: Embedding Space</a>
+  </footer>
+</div>
+
+<!-- ======================================================================
+     JAVASCRIPT: All interactive visualizations
+     ====================================================================== -->
+<script>
+(function() {
+  'use strict';
+
+  // ────────── Shared utilities ──────────
+  const COLORS = {
+    blue: '#2563eb',
+    blueFade: 'rgba(37,99,235,0.15)',
+    green: '#059669',
+    greenFade: 'rgba(5,150,105,0.15)',
+    red: '#c2402a',
+    redFade: 'rgba(194,64,42,0.12)',
+    amber: '#d97706',
+    amberFade: 'rgba(217,119,6,0.15)',
+    violet: '#7c3aed',
+    violetFade: 'rgba(124,58,237,0.12)',
+    text: '#1a1a2e',
+    textSec: '#4a4a6a',
+    muted: '#8888a0',
+    border: '#e0ddd5',
+    bgAlt: '#f3f0eb',
+    bg: '#faf9f6',
+    white: '#ffffff',
+  };
+
+  function setupHiDPI(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = (canvas.height / (canvas.getAttribute('data-base-w') ? +canvas.getAttribute('data-base-w') : 860)) * rect.width * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    canvas._dpr = dpr;
+    canvas._w = rect.width;
+    canvas._h = canvas.height / dpr;
+    return ctx;
+  }
+
+  function dist(a, b) {
+    return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function drawArrow(ctx, x1, y1, x2, y2, color, headLen) {
+    headLen = headLen || 10;
+    const dx = x2 - x1, dy = y2 - y1;
+    const angle = Math.atan2(dy, dx);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  function drawDashedLine(ctx, x1, y1, x2, y2, color, lw) {
+    ctx.beginPath();
+    ctx.setLineDash([6, 4]);
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw || 1.5;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawDot(ctx, x, y, r, fill, stroke, lw) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    if (stroke) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = lw || 2;
+      ctx.stroke();
+    }
+  }
+
+  function drawLabel(ctx, text, x, y, color, fontSize, align) {
+    ctx.font = (fontSize || 12) + 'px "Source Code Pro", monospace';
+    ctx.fillStyle = color || COLORS.textSec;
+    ctx.textAlign = align || 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y);
+  }
+
+  // ────────── HERO CANVAS: 2D Embedding Space ──────────
+  (function heroViz() {
+    const canvas = document.getElementById('heroCanvas');
+    const baseW = 860, baseH = 500;
+    canvas.setAttribute('data-base-w', baseW);
+    let ctx, W, H;
+
+    function resize() {
+      ctx = setupHiDPI(canvas);
+      W = canvas._w;
+      H = canvas._h;
+    }
+
+    // Default positions (in normalized 0..1 coords, mapped to canvas)
+    const defaultNorm = [
+      { x: 0.18, y: 0.62 },  // t-2
+      { x: 0.35, y: 0.45 },  // t-1
+      { x: 0.55, y: 0.38 },  // t
+      { x: 0.78, y: 0.35 },  // t+1 (target)
+    ];
+
+    let dots, predDot;
+    let dragging = -1;
+    let animStep = -1; // -1 = free mode, 0..3 = step-through steps
+    let animTimer = null;
+
+    function resetPositions() {
+      dots = defaultNorm.map(d => ({ x: d.x, y: d.y }));
+      computePrediction();
+      animStep = -1;
+      document.getElementById('heroStepLabel').textContent = '';
+      document.getElementById('heroAnimate').classList.remove('active');
+      if (animTimer) { clearTimeout(animTimer); animTimer = null; }
+    }
+
+    function toCanvas(p) { return { x: p.x * W, y: p.y * H }; }
+    function fromCanvas(p) { return { x: p.x / W, y: p.y / H }; }
+
+    function computePrediction() {
+      // Simple model: predict t+1 from the trajectory implied by t-2, t-1, t
+      // Use quadratic extrapolation
+      const d0 = dots[0], d1 = dots[1], d2 = dots[2];
+      // Velocity at t: average of (d1-d0) and (d2-d1)
+      const v1x = d1.x - d0.x, v1y = d1.y - d0.y;
+      const v2x = d2.x - d1.x, v2y = d2.y - d1.y;
+      // Acceleration
+      const ax = v2x - v1x, ay = v2y - v1y;
+      // Predict: d2 + v2 + 0.5*a (quadratic)
+      predDot = {
+        x: d2.x + v2x + 0.3 * ax,
+        y: d2.y + v2y + 0.3 * ay
+      };
+    }
+
+    function computeMSE() {
+      const tgt = dots[3];
+      return ((predDot.x - tgt.x) ** 2 + (predDot.y - tgt.y) ** 2);
+    }
+
+    function draw() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+
+      // Background grid
+      ctx.strokeStyle = COLORS.border;
+      ctx.lineWidth = 0.5;
+      const gridSpacing = 40;
+      for (let gx = gridSpacing; gx < W; gx += gridSpacing) {
+        ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
+      }
+      for (let gy = gridSpacing; gy < H; gy += gridSpacing) {
+        ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+      }
+
+      // Axis labels
+      ctx.save();
+      ctx.font = '11px "Source Code Pro", monospace';
+      ctx.fillStyle = COLORS.muted;
+      ctx.textAlign = 'center';
+      ctx.fillText('embedding dimension 1', W / 2, H - 12);
+      ctx.save();
+      ctx.translate(14, H / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('embedding dimension 2', 0, 0);
+      ctx.restore();
+      ctx.restore();
+
+      const p = dots.map(toCanvas);
+      const pred = toCanvas(predDot);
+      const tgt = p[3];
+
+      // Step-through animation visibility
+      const showContext = animStep === -1 || animStep >= 0;
+      const showActions = animStep === -1 || animStep >= 1;
+      const showPred = animStep === -1 || animStep >= 2;
+      const showMSE = animStep === -1 || animStep >= 3;
+
+      // Draw trajectory path (faint curve through context)
+      if (showContext) {
+        ctx.beginPath();
+        ctx.moveTo(p[0].x, p[0].y);
+        for (let i = 1; i < 3; i++) {
+          ctx.lineTo(p[i].x, p[i].y);
+        }
+        ctx.strokeStyle = 'rgba(37,99,235,0.2)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Action arrows between consecutive context frames
+      if (showActions) {
+        for (let i = 0; i < 2; i++) {
+          const mx = (p[i].x + p[i + 1].x) / 2;
+          const my = (p[i].y + p[i + 1].y) / 2;
+          const dx = p[i + 1].x - p[i].x;
+          const dy = p[i + 1].y - p[i].y;
+          const len = Math.sqrt(dx * dx + dy * dy);
+          const aLen = Math.min(len * 0.35, 30);
+          const ax = mx - dx / len * aLen * 0.5;
+          const ay = my - dy / len * aLen * 0.5;
+          const bx = mx + dx / len * aLen * 0.5;
+          const by = my + dy / len * aLen * 0.5;
+          drawArrow(ctx, ax, ay, bx, by, COLORS.amber, 8);
+          // Label
+          drawLabel(ctx, 'a' + (i), mx + dy / len * 14, my - dx / len * 14, COLORS.amber, 10);
+        }
+        // Action arrow from t to predicted region
+        if (showPred) {
+          const mx = (p[2].x + pred.x) / 2;
+          const my = (p[2].y + pred.y) / 2;
+          const dx = pred.x - p[2].x;
+          const dy = pred.y - p[2].y;
+          const len = Math.sqrt(dx * dx + dy * dy) || 1;
+          const aLen = Math.min(len * 0.35, 30);
+          const ax = mx - dx / len * aLen * 0.5;
+          const ay = my - dy / len * aLen * 0.5;
+          const bx = mx + dx / len * aLen * 0.5;
+          const by = my + dy / len * aLen * 0.5;
+          drawArrow(ctx, ax, ay, bx, by, COLORS.amber, 8);
+          drawLabel(ctx, 'a2', mx + dy / len * 14, my - dx / len * 14, COLORS.amber, 10);
+        }
+      }
+
+      // MSE dashed line
+      if (showMSE && showPred) {
+        drawDashedLine(ctx, pred.x, pred.y, tgt.x, tgt.y, COLORS.red, 1.5);
+        // MSE midpoint label
+        const mx = (pred.x + tgt.x) / 2;
+        const my = (pred.y + tgt.y) / 2;
+        const mse = computeMSE();
+        ctx.font = '11px "Source Code Pro", monospace';
+        ctx.fillStyle = COLORS.red;
+        ctx.textAlign = 'center';
+        const dxx = tgt.x - pred.x, dyy = tgt.y - pred.y;
+        const nl = Math.sqrt(dxx * dxx + dyy * dyy) || 1;
+        ctx.fillText('MSE', mx + dyy / nl * 16, my - dxx / nl * 16);
+      }
+
+      // Draw predicted dot
+      if (showPred) {
+        // Glow
+        const grd = ctx.createRadialGradient(pred.x, pred.y, 0, pred.x, pred.y, 24);
+        grd.addColorStop(0, 'rgba(194,64,42,0.25)');
+        grd.addColorStop(1, 'rgba(194,64,42,0)');
+        ctx.beginPath();
+        ctx.arc(pred.x, pred.y, 24, 0, Math.PI * 2);
+        ctx.fillStyle = grd;
+        ctx.fill();
+        drawDot(ctx, pred.x, pred.y, 9, COLORS.red, COLORS.white, 2.5);
+        drawLabel(ctx, 'predicted', pred.x, pred.y - 20, COLORS.red, 11);
+      }
+
+      // Draw context dots
+      if (showContext) {
+        const labels = ['t\u22122', 't\u22121', 't'];
+        for (let i = 0; i < 3; i++) {
+          // Glow for context
+          const grd = ctx.createRadialGradient(p[i].x, p[i].y, 0, p[i].x, p[i].y, 20);
+          grd.addColorStop(0, 'rgba(37,99,235,0.2)');
+          grd.addColorStop(1, 'rgba(37,99,235,0)');
+          ctx.beginPath();
+          ctx.arc(p[i].x, p[i].y, 20, 0, Math.PI * 2);
+          ctx.fillStyle = grd;
+          ctx.fill();
+          drawDot(ctx, p[i].x, p[i].y, 9, COLORS.blue, COLORS.white, 2.5);
+          drawLabel(ctx, labels[i], p[i].x, p[i].y + 22, COLORS.blue, 11);
+        }
+      }
+
+      // Draw target dot
+      if (showContext) {
+        const grd = ctx.createRadialGradient(tgt.x, tgt.y, 0, tgt.x, tgt.y, 20);
+        grd.addColorStop(0, 'rgba(5,150,105,0.2)');
+        grd.addColorStop(1, 'rgba(5,150,105,0)');
+        ctx.beginPath();
+        ctx.arc(tgt.x, tgt.y, 20, 0, Math.PI * 2);
+        ctx.fillStyle = grd;
+        ctx.fill();
+        drawDot(ctx, tgt.x, tgt.y, 9, COLORS.green, COLORS.white, 2.5);
+        drawLabel(ctx, 't+1', tgt.x, tgt.y + 22, COLORS.green, 11);
+        drawLabel(ctx, '(target)', tgt.x, tgt.y + 35, COLORS.green, 10);
+      }
+
+      // Update MSE display
+      if (showMSE && showPred) {
+        const mse = computeMSE();
+        document.getElementById('heroMSE').textContent = mse.toFixed(4);
+      }
+    }
+
+    // Mouse interaction
+    function getMousePos(e) {
+      const rect = canvas.getBoundingClientRect();
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+
+    canvas.addEventListener('mousedown', function(e) {
+      if (animStep >= 0) return; // No dragging during animation
+      const m = getMousePos(e);
+      const mn = fromCanvas(m);
+      for (let i = 0; i < 4; i++) {
+        if (Math.abs(mn.x - dots[i].x) * W < 18 && Math.abs(mn.y - dots[i].y) * H < 18) {
+          dragging = i;
+          canvas.style.cursor = 'grabbing';
+          break;
+        }
+      }
+    });
+
+    canvas.addEventListener('mousemove', function(e) {
+      const m = getMousePos(e);
+      const mn = fromCanvas(m);
+      if (dragging >= 0) {
+        dots[dragging].x = Math.max(0.05, Math.min(0.95, mn.x));
+        dots[dragging].y = Math.max(0.05, Math.min(0.95, mn.y));
+        if (dragging < 3) computePrediction();
+        draw();
+      } else {
+        // Hover cursor
+        let hover = false;
+        if (animStep < 0) {
+          for (let i = 0; i < 4; i++) {
+            if (Math.abs(mn.x - dots[i].x) * W < 18 && Math.abs(mn.y - dots[i].y) * H < 18) {
+              hover = true; break;
+            }
+          }
+        }
+        canvas.style.cursor = hover ? 'grab' : 'default';
+      }
+    });
+
+    canvas.addEventListener('mouseup', function() {
+      dragging = -1;
+      canvas.style.cursor = 'default';
+    });
+
+    canvas.addEventListener('mouseleave', function() {
+      dragging = -1;
+      canvas.style.cursor = 'default';
+    });
+
+    // Touch support
+    canvas.addEventListener('touchstart', function(e) {
+      if (animStep >= 0) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const m = { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+      const mn = fromCanvas(m);
+      for (let i = 0; i < 4; i++) {
+        if (Math.abs(mn.x - dots[i].x) * W < 24 && Math.abs(mn.y - dots[i].y) * H < 24) {
+          dragging = i; break;
+        }
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', function(e) {
+      if (dragging < 0) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const m = { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+      const mn = fromCanvas(m);
+      dots[dragging].x = Math.max(0.05, Math.min(0.95, mn.x));
+      dots[dragging].y = Math.max(0.05, Math.min(0.95, mn.y));
+      if (dragging < 3) computePrediction();
+      draw();
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', function() { dragging = -1; });
+
+    // Reset button
+    document.getElementById('heroReset').addEventListener('click', function() {
+      resetPositions();
+      draw();
+    });
+
+    // Step-through animation
+    document.getElementById('heroAnimate').addEventListener('click', function() {
+      const btn = this;
+      if (animStep >= 0) {
+        // Cancel animation
+        animStep = -1;
+        btn.classList.remove('active');
+        document.getElementById('heroStepLabel').textContent = '';
+        if (animTimer) { clearTimeout(animTimer); animTimer = null; }
+        draw();
+        return;
+      }
+
+      resetPositions();
+      animStep = 0;
+      btn.classList.add('active');
+
+      const steps = [
+        { label: 'Encoding frames...', step: 0 },
+        { label: 'Encoding actions...', step: 1 },
+        { label: 'Predicting...', step: 2 },
+        { label: 'Computing loss...', step: 3 },
+      ];
+
+      let idx = 0;
+      function nextStep() {
+        if (idx >= steps.length) {
+          animTimer = setTimeout(function() {
+            animStep = -1;
+            btn.classList.remove('active');
+            document.getElementById('heroStepLabel').textContent = '';
+            draw();
+          }, 2000);
+          return;
+        }
+        animStep = steps[idx].step;
+        document.getElementById('heroStepLabel').textContent = steps[idx].label;
+        draw();
+        idx++;
+        animTimer = setTimeout(nextStep, 1200);
+      }
+      nextStep();
+    });
+
+    // Init
+    resize();
+    resetPositions();
+    draw();
+
+    window.addEventListener('resize', function() {
+      resize();
+      draw();
+    });
+  })();
+
+
+  // ────────── ADALN VIZ: Action-conditioned Modulation ──────────
+  (function adalnViz() {
+    const canvas = document.getElementById('adalnCanvas');
+    const baseW = 860, baseH = 540;
+    canvas.setAttribute('data-base-w', baseW);
+    let ctx, W, H;
+
+    function resize() {
+      ctx = setupHiDPI(canvas);
+      W = canvas._w;
+      H = canvas._h;
+    }
+
+    let actionStrength = 0;
+
+    function getModParams(strength) {
+      // Simulated modulation parameters based on action strength
+      const s = strength; // 0..1
+      return {
+        shift_msa: s * 0.6 - 0.1 * s,
+        scale_msa: s * 0.8,
+        gate_msa: s * 0.9,
+        shift_mlp: s * 0.4,
+        scale_mlp: s * 0.5,
+        gate_mlp: s * 0.85,
+      };
+    }
+
+    function drawSignalBars(ctx, x, y, w, h, values, color, alpha) {
+      const barW = w / values.length - 1;
+      ctx.globalAlpha = alpha || 1;
+      for (let i = 0; i < values.length; i++) {
+        const barH = values[i] * h * 0.45;
+        const bx = x + i * (barW + 1);
+        ctx.fillStyle = color;
+        ctx.fillRect(bx, y + h / 2 - barH, barW, barH * 2);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function generateSignal(n, seed) {
+      const vals = [];
+      for (let i = 0; i < n; i++) {
+        vals.push(Math.sin(i * 0.7 + seed) * 0.6 + Math.sin(i * 1.3 + seed * 2) * 0.3 + Math.cos(i * 0.3) * 0.1);
+      }
+      return vals;
+    }
+
+    function normalizeSignal(vals) {
+      const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+      const std = Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length) || 1;
+      return vals.map(v => (v - mean) / std);
+    }
+
+    function modulateSignal(vals, shift, scale) {
+      return vals.map(v => v * (1 + scale) + shift);
+    }
+
+    function gateSignal(vals, gate) {
+      return vals.map(v => v * gate);
+    }
+
+    function draw() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+
+      const params = getModParams(actionStrength);
+      const barN = 16;
+      const rawSignal = generateSignal(barN, 1);
+      const normedSignal = normalizeSignal(rawSignal);
+
+      // Layout: three horizontal zones
+      // Top zone (y: 0..topZoneH): action embedding + SiLU box + modulation params
+      // Mid zone (y: topZoneH..topZoneH+midZoneH): signal flow bars
+      // Bot zone: section labels + residual arcs
+      const margin = { left: 30, right: 30 };
+      const blockW = W - margin.left - margin.right;
+      const topZoneH = H * 0.42;
+      const midZoneTop = topZoneH;
+      const midZoneH = H * 0.28;
+      const botLabelY = midZoneTop + midZoneH + 16;
+
+      // Sections (left to right) — signal flow columns
+      const sections = [
+        { label: 'Input x', x: 0, w: 0.11 },
+        { label: 'LayerNorm', x: 0.12, w: 0.09 },
+        { label: 'Modulate', x: 0.22, w: 0.12 },
+        { label: 'Attention', x: 0.35, w: 0.09 },
+        { label: 'Gate', x: 0.45, w: 0.07 },
+        { label: 'Residual +', x: 0.53, w: 0.07 },
+        { label: 'MLP path', x: 0.62, w: 0.14 },
+        { label: 'Output', x: 0.78, w: 0.22 },
+      ];
+
+      // Draw faint section backgrounds in signal zone only
+      sections.forEach((sec, i) => {
+        const sx = margin.left + sec.x * blockW;
+        const sw = sec.w * blockW;
+        ctx.fillStyle = i % 2 === 0 ? 'rgba(37,99,235,0.03)' : 'rgba(124,58,237,0.03)';
+        ctx.fillRect(sx, midZoneTop, sw, midZoneH);
+        ctx.strokeStyle = COLORS.border;
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(sx, midZoneTop, sw, midZoneH);
+        // Label below
+        ctx.font = '9px "Source Code Pro", monospace';
+        ctx.fillStyle = COLORS.muted;
+        ctx.textAlign = 'center';
+        ctx.fillText(sec.label, sx + sw / 2, botLabelY);
+      });
+
+      // ── Top zone: Action embedding + modulation params ──
+      const condX = W * 0.5;
+
+      // "action c" label + arrow into SiLU box
+      ctx.font = '11px "Source Code Pro", monospace';
+      ctx.fillStyle = COLORS.amber;
+      ctx.textAlign = 'center';
+      ctx.fillText('action embedding c', condX, 18);
+      drawArrow(ctx, condX, 24, condX, 44, COLORS.amber, 7);
+
+      // SiLU + Linear box
+      const siluW = 90;
+      const siluH = 24;
+      const siluX = condX - siluW / 2;
+      const siluY = 46;
+      ctx.fillStyle = 'rgba(217,119,6,0.1)';
+      ctx.strokeStyle = COLORS.amber;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(siluX, siluY, siluW, siluH, 4);
+      ctx.fill();
+      ctx.stroke();
+      ctx.font = '10px "Source Code Pro", monospace';
+      ctx.fillStyle = COLORS.amber;
+      ctx.textAlign = 'center';
+      ctx.fillText('SiLU \u2192 Linear', condX, siluY + siluH / 2 + 3);
+
+      // 6 modulation parameters in two groups (MSA left, MLP right)
+      const paramLabels = ['shift', 'scale', 'gate'];
+      const paramValsMSA = [params.shift_msa, params.scale_msa, params.gate_msa];
+      const paramValsMLP = [params.shift_mlp, params.scale_mlp, params.gate_mlp];
+
+      const paramRowY = siluY + siluH + 16;
+      const msaCenterX = margin.left + 0.28 * blockW;
+      const mlpCenterX = margin.left + 0.69 * blockW;
+
+      // MSA group label
+      ctx.font = 'bold 9px "Source Code Pro", monospace';
+      ctx.fillStyle = COLORS.violet;
+      ctx.textAlign = 'center';
+      ctx.fillText('MSA path', msaCenterX, paramRowY - 4);
+
+      // MLP group label
+      ctx.fillText('MLP path', mlpCenterX, paramRowY - 4);
+
+      // Draw param pills for each group
+      function drawParamPill(cx, y, label, value) {
+        const text = label + ': ' + value.toFixed(2);
+        ctx.font = '9px "Source Code Pro", monospace';
+        const tw = ctx.measureText(text).width + 12;
+        const ph = 16;
+        const px = cx - tw / 2;
+
+        // Pill background with intensity
+        const intensity = Math.abs(value);
+        ctx.fillStyle = 'rgba(217,119,6,' + (0.06 + intensity * 0.15) + ')';
+        ctx.beginPath();
+        ctx.roundRect(px, y, tw, ph, 3);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(217,119,6,' + (0.3 + intensity * 0.4) + ')';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+
+        ctx.fillStyle = COLORS.amber;
+        ctx.textAlign = 'center';
+        ctx.fillText(text, cx, y + ph / 2 + 3);
+      }
+
+      for (let i = 0; i < 3; i++) {
+        drawParamPill(msaCenterX, paramRowY + 6 + i * 22, paramLabels[i] + '_msa', paramValsMSA[i]);
+        drawParamPill(mlpCenterX, paramRowY + 6 + i * 22, paramLabels[i] + '_mlp', paramValsMLP[i]);
+      }
+
+      // Fanout lines from SiLU box to param groups
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(217,119,6,0.25)';
+      ctx.lineWidth = 1;
+      ctx.moveTo(condX, siluY + siluH);
+      ctx.quadraticCurveTo(condX, paramRowY, msaCenterX, paramRowY + 6);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(condX, siluY + siluH);
+      ctx.quadraticCurveTo(condX, paramRowY, mlpCenterX, paramRowY + 6);
+      ctx.stroke();
+
+      // Downward arrows from param pills to signal sections
+      const modSectionCenterX = margin.left + (sections[2].x + sections[2].w / 2) * blockW;
+      const gateSectionCenterX = margin.left + (sections[4].x + sections[4].w / 2) * blockW;
+      const mlpSectionCenterX = margin.left + (sections[6].x + sections[6].w / 2) * blockW;
+
+      // shift/scale -> Modulate section
+      ctx.beginPath();
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = 'rgba(217,119,6,0.3)';
+      ctx.lineWidth = 1;
+      ctx.moveTo(msaCenterX, paramRowY + 6 + 1 * 22 + 16);
+      ctx.lineTo(modSectionCenterX, midZoneTop);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // gate -> Gate section
+      ctx.beginPath();
+      ctx.setLineDash([3, 3]);
+      ctx.moveTo(msaCenterX, paramRowY + 6 + 2 * 22 + 16);
+      ctx.lineTo(gateSectionCenterX, midZoneTop);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // MLP params -> MLP section
+      ctx.beginPath();
+      ctx.setLineDash([3, 3]);
+      ctx.moveTo(mlpCenterX, paramRowY + 6 + 2 * 22 + 16);
+      ctx.lineTo(mlpSectionCenterX, midZoneTop);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // ── Mid zone: Signal flow ──
+      const signalY = midZoneTop + midZoneH / 2;
+      const sigH = midZoneH * 0.7;
+
+      // Helper to get section pixel bounds
+      function secPx(i) {
+        return {
+          x: margin.left + sections[i].x * blockW + 4,
+          w: sections[i].w * blockW - 8,
+          cx: margin.left + (sections[i].x + sections[i].w / 2) * blockW,
+          r: margin.left + (sections[i].x + sections[i].w) * blockW,
+          l: margin.left + sections[i].x * blockW,
+        };
+      }
+
+      // 1. Input x
+      var s = secPx(0);
+      drawSignalBars(ctx, s.x, signalY - sigH / 2, s.w, sigH, rawSignal, COLORS.blue, 0.8);
+      drawArrow(ctx, secPx(0).r, signalY, secPx(1).l + 4, signalY, COLORS.muted, 5);
+
+      // 2. LayerNorm
+      s = secPx(1);
+      drawSignalBars(ctx, s.x, signalY - sigH / 2, s.w, sigH, normedSignal, COLORS.blue, 0.8);
+      drawArrow(ctx, secPx(1).r, signalY, secPx(2).l + 4, signalY, COLORS.muted, 5);
+
+      // 3. Modulate: x * (1 + scale) + shift
+      const modSignal = modulateSignal(normedSignal, params.shift_msa, params.scale_msa);
+      s = secPx(2);
+      drawSignalBars(ctx, s.x, signalY - sigH / 2, s.w, sigH, modSignal, COLORS.violet, 0.8);
+      // Small formula below section
+      ctx.font = '8px "Source Code Pro", monospace';
+      ctx.fillStyle = COLORS.violet;
+      ctx.textAlign = 'center';
+      ctx.fillText('x\u00B7(1+scale)+shift', s.cx, signalY + sigH / 2 + 12);
+      drawArrow(ctx, secPx(2).r, signalY, secPx(3).l + 4, signalY, COLORS.muted, 5);
+
+      // 4. Attention
+      const attnSignal = modSignal.map((v, i) => v * 0.8 + Math.sin(i * 0.9) * 0.2 * (1 + actionStrength));
+      s = secPx(3);
+      drawSignalBars(ctx, s.x, signalY - sigH / 2, s.w, sigH, attnSignal, COLORS.blue, 0.7);
+      drawArrow(ctx, secPx(3).r, signalY, secPx(4).l + 4, signalY, COLORS.muted, 5);
+
+      // 5. Gate
+      const gatedSignal = gateSignal(attnSignal, params.gate_msa);
+      s = secPx(4);
+      const gateAlpha = 0.15 + params.gate_msa * 0.85;
+      drawSignalBars(ctx, s.x, signalY - sigH / 2, s.w, sigH, gatedSignal, COLORS.blue, gateAlpha);
+      // Gate indicator
+      ctx.font = '8px "Source Code Pro", monospace';
+      ctx.fillStyle = params.gate_msa < 0.1 ? COLORS.muted : COLORS.accent;
+      ctx.textAlign = 'center';
+      ctx.fillText('\u00D7' + params.gate_msa.toFixed(2), s.cx, signalY + sigH / 2 + 12);
+      drawArrow(ctx, secPx(4).r, signalY, secPx(5).l + 4, signalY, COLORS.muted, 5);
+
+      // 6. Residual add: x + gate * attn(...)
+      const residualSignal = rawSignal.map((v, i) => v + gatedSignal[i]);
+      s = secPx(5);
+      drawSignalBars(ctx, s.x, signalY - sigH / 2, s.w, sigH, residualSignal, COLORS.blue, 0.9);
+
+      // Residual connection arc (below signal)
+      ctx.beginPath();
+      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = 'rgba(37,99,235,0.3)';
+      ctx.lineWidth = 1;
+      const resArcBottom = midZoneTop + midZoneH + 4;
+      ctx.moveTo(secPx(0).cx, midZoneTop + midZoneH);
+      ctx.quadraticCurveTo((secPx(0).cx + secPx(5).cx) / 2, resArcBottom + 14, secPx(5).cx, midZoneTop + midZoneH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = '7px "Source Code Pro", monospace';
+      ctx.fillStyle = COLORS.muted;
+      ctx.textAlign = 'center';
+      ctx.fillText('+ residual', (secPx(0).cx + secPx(5).cx) / 2, resArcBottom + 18);
+
+      drawArrow(ctx, secPx(5).r, signalY, secPx(6).l + 4, signalY, COLORS.muted, 5);
+
+      // 7. MLP path (combined: norm2 + modulate + MLP + gate)
+      const normed2 = normalizeSignal(residualSignal);
+      const modMLPSignal = modulateSignal(normed2, params.shift_mlp, params.scale_mlp);
+      const mlpOut = modMLPSignal.map((v, i) => v * 0.7 + 0.3 * Math.sin(i * 1.1));
+      const gatedMLP = gateSignal(mlpOut, params.gate_mlp);
+      s = secPx(6);
+      const mlpAlpha = 0.15 + params.gate_mlp * 0.85;
+      drawSignalBars(ctx, s.x, signalY - sigH / 2, s.w, sigH, gatedMLP, COLORS.violet, mlpAlpha);
+      ctx.font = '8px "Source Code Pro", monospace';
+      ctx.fillStyle = COLORS.violet;
+      ctx.textAlign = 'center';
+      ctx.fillText('\u00D7' + params.gate_mlp.toFixed(2), s.cx, signalY + sigH / 2 + 12);
+
+      drawArrow(ctx, secPx(6).r, signalY, secPx(7).l + 4, signalY, COLORS.muted, 5);
+
+      // 8. Output (residual add again)
+      const outputSignal = residualSignal.map((v, i) => v + gatedMLP[i]);
+      s = secPx(7);
+      drawSignalBars(ctx, s.x, signalY - sigH / 2, s.w, sigH, outputSignal, COLORS.green, 0.9);
+
+      // Second residual arc (above signal)
+      ctx.beginPath();
+      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = 'rgba(37,99,235,0.2)';
+      ctx.lineWidth = 1;
+      const resArcY2 = midZoneTop - 4;
+      ctx.moveTo(secPx(5).cx, midZoneTop + 2);
+      ctx.quadraticCurveTo((secPx(5).cx + secPx(7).cx) / 2, resArcY2 - 6, secPx(7).cx, midZoneTop + 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = '7px "Source Code Pro", monospace';
+      ctx.fillStyle = COLORS.muted;
+      ctx.textAlign = 'center';
+      ctx.fillText('+ residual', (secPx(5).cx + secPx(7).cx) / 2, resArcY2 - 8);
+
+      // Zero-init notice
+      if (actionStrength < 0.05) {
+        ctx.font = '11px "Source Code Pro", monospace';
+        ctx.fillStyle = COLORS.accent;
+        ctx.textAlign = 'right';
+        ctx.fillText('\u2190 Zero-init: all params \u2248 0, block \u2248 identity', W - margin.right, siluY + siluH / 2 + 3);
+      }
+    }
+
+    // Slider
+    const slider = document.getElementById('actionSlider');
+    const valDisplay = document.getElementById('actionVal');
+    slider.addEventListener('input', function() {
+      actionStrength = this.value / 100;
+      valDisplay.textContent = actionStrength.toFixed(2);
+      draw();
+    });
+
+    document.getElementById('adaln-reset').addEventListener('click', function() {
+      slider.value = 0;
+      actionStrength = 0;
+      valDisplay.textContent = '0.00';
+      draw();
+    });
+
+    resize();
+    draw();
+    window.addEventListener('resize', function() { resize(); draw(); });
+  })();
+
+
+  // ────────── SLIDING WINDOW VIZ ──────────
+  (function windowViz() {
+    const canvas = document.getElementById('windowCanvas');
+    const baseW = 860, baseH = 260;
+    canvas.setAttribute('data-base-w', baseW);
+    let ctx, W, H;
+
+    function resize() {
+      ctx = setupHiDPI(canvas);
+      W = canvas._w;
+      H = canvas._h;
+    }
+
+    const NUM_FRAMES = 10;
+    const CTX_LEN = 3;
+    let windowStart = 0;
+    let autoPlaying = false;
+    let autoTimer = null;
+
+    // Generate frame positions (dots along a horizontal axis)
+    function frameX(i) {
+      const margin = 60;
+      return margin + i * ((W - margin * 2) / (NUM_FRAMES - 1));
+    }
+    const frameY = function() { return H * 0.5; };
+
+    // Simulated predicted position (slightly off from target)
+    function predY(i) {
+      return frameY() - 18 - Math.sin(i * 0.8) * 8;
+    }
+
+    function draw() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+
+      const fy = frameY();
+
+      // Timeline axis
+      ctx.beginPath();
+      ctx.moveTo(frameX(0) - 20, fy);
+      ctx.lineTo(frameX(NUM_FRAMES - 1) + 20, fy);
+      ctx.strokeStyle = COLORS.border;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Draw sliding window highlight
+      const winLeft = frameX(windowStart) - 18;
+      const winRight = frameX(windowStart + CTX_LEN - 1) + 18;
+      ctx.fillStyle = 'rgba(37,99,235,0.08)';
+      ctx.strokeStyle = COLORS.blue;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(winLeft, fy - 40, winRight - winLeft, 80, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      // Window label
+      ctx.font = '10px "Source Code Pro", monospace';
+      ctx.fillStyle = COLORS.blue;
+      ctx.textAlign = 'center';
+      ctx.fillText('context window (size=' + CTX_LEN + ')', (winLeft + winRight) / 2, fy + 56);
+
+      // Target highlight
+      const tgtIdx = windowStart + CTX_LEN;
+      if (tgtIdx < NUM_FRAMES) {
+        const tx = frameX(tgtIdx);
+        ctx.fillStyle = 'rgba(5,150,105,0.08)';
+        ctx.strokeStyle = COLORS.green;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(tx - 18, fy - 40, 36, 80, 10);
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // Draw action arrows within the window
+      for (let i = windowStart; i < windowStart + CTX_LEN - 1 && i < NUM_FRAMES - 1; i++) {
+        const ax = frameX(i) + 14;
+        const bx = frameX(i + 1) - 14;
+        drawArrow(ctx, ax, fy - 8, bx, fy - 8, COLORS.amber, 6);
+        ctx.font = '8px "Source Code Pro", monospace';
+        ctx.fillStyle = COLORS.amber;
+        ctx.textAlign = 'center';
+        ctx.fillText('a' + i, (ax + bx) / 2, fy - 18);
+      }
+
+      // Draw action arrow from last context to target
+      if (tgtIdx < NUM_FRAMES) {
+        const lastCtx = windowStart + CTX_LEN - 1;
+        const ax = frameX(lastCtx) + 14;
+        const bx = frameX(tgtIdx) - 14;
+        drawArrow(ctx, ax, fy - 8, bx, fy - 8, COLORS.amber, 6);
+        ctx.font = '8px "Source Code Pro", monospace';
+        ctx.fillStyle = COLORS.amber;
+        ctx.textAlign = 'center';
+        ctx.fillText('a' + lastCtx, (ax + bx) / 2, fy - 18);
+      }
+
+      // Draw all frame dots
+      for (let i = 0; i < NUM_FRAMES; i++) {
+        const fx = frameX(i);
+        let color = COLORS.muted;
+        let label = '' + i;
+
+        if (i >= windowStart && i < windowStart + CTX_LEN) {
+          color = COLORS.blue;
+        } else if (i === tgtIdx) {
+          color = COLORS.green;
+        }
+
+        drawDot(ctx, fx, fy, 8, color, COLORS.white, 2);
+
+        ctx.font = '10px "Source Code Pro", monospace';
+        ctx.fillStyle = color;
+        ctx.textAlign = 'center';
+        ctx.fillText('f' + i, fx, fy + 28);
+      }
+
+      // Draw predicted dot
+      if (tgtIdx < NUM_FRAMES) {
+        const tx = frameX(tgtIdx);
+        const py = predY(tgtIdx);
+        // Dashed line from pred to target
+        drawDashedLine(ctx, tx, py, tx, fy - 10, COLORS.red, 1.5);
+        drawDot(ctx, tx, py, 7, COLORS.red, COLORS.white, 2);
+        ctx.font = '9px "Source Code Pro", monospace';
+        ctx.fillStyle = COLORS.red;
+        ctx.textAlign = 'center';
+        ctx.fillText('pred', tx + 24, py);
+
+        ctx.fillStyle = COLORS.green;
+        ctx.fillText('target', tx + 28, fy + 4);
+      }
+
+      // Code annotation
+      ctx.font = '10px "Source Code Pro", monospace';
+      ctx.fillStyle = COLORS.muted;
+      ctx.textAlign = 'left';
+      ctx.fillText('ctx_emb = emb[:, ' + windowStart + ':' + (windowStart + CTX_LEN) + ']', 20, 20);
+      if (tgtIdx < NUM_FRAMES) {
+        ctx.fillText('tgt_emb = emb[:, ' + tgtIdx + ']', 20, 36);
+      }
+
+      // Update label
+      document.getElementById('windowLabel').textContent = 'Window at frame ' + windowStart + ' \u2192 target: frame ' + tgtIdx;
+    }
+
+    function stepForward() {
+      if (windowStart + CTX_LEN < NUM_FRAMES) {
+        windowStart++;
+      } else {
+        windowStart = 0;
+      }
+      draw();
+    }
+
+    document.getElementById('windowStep').addEventListener('click', stepForward);
+
+    document.getElementById('windowAuto').addEventListener('click', function() {
+      if (autoPlaying) {
+        autoPlaying = false;
+        this.classList.remove('active');
+        this.textContent = 'Auto-play';
+        if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+      } else {
+        autoPlaying = true;
+        this.classList.add('active');
+        this.textContent = 'Pause';
+        autoTimer = setInterval(stepForward, 1200);
+      }
+    });
+
+    resize();
+    draw();
+    window.addEventListener('resize', function() { resize(); draw(); });
+  })();
+
+
+  // ────────── LOSS COMPUTATION DIAGRAM ──────────
+  (function lossViz() {
+    const canvas = document.getElementById('lossCanvas');
+    const baseW = 860, baseH = 340;
+    canvas.setAttribute('data-base-w', baseW);
+    let ctx, W, H;
+    let hoveredBox = -1;
+
+    function resize() {
+      ctx = setupHiDPI(canvas);
+      W = canvas._w;
+      H = canvas._h;
+    }
+
+    // Components layout
+    function getBoxes() {
+      const bh = 46;
+      const cy = H * 0.40;
+      const lossY = H * 0.83;
+
+      return [
+        // 0: Encoder
+        { x: W * 0.07, y: cy - bh / 2, w: W * 0.14, h: bh, label: 'Encoder', sublabel: 'ViT', color: COLORS.blue, desc: 'Encodes raw frames into embeddings. Receives gradients from L_pred.' },
+        // 1: Projector
+        { x: W * 0.25, y: cy - bh / 2, w: W * 0.12, h: bh, label: 'Projector', sublabel: 'MLP', color: COLORS.blue, desc: 'Projects encoder output to embedding space.' },
+        // 2: Action Encoder
+        { x: W * 0.07, y: cy + bh * 0.9, w: W * 0.14, h: bh, label: 'Action Enc.', sublabel: 'Embedder', color: COLORS.amber, desc: 'Encodes actions into embedding space for conditioning.' },
+        // 3: ARPredictor
+        { x: W * 0.44, y: cy - bh / 2, w: W * 0.16, h: bh, label: 'ARPredictor', sublabel: '6x ConditionalBlock', color: COLORS.violet, desc: 'Transformer with AdaLN-zero. Predicts next embedding from context + actions.' },
+        // 4: Pred Projector
+        { x: W * 0.64, y: cy - bh / 2, w: W * 0.12, h: bh, label: 'Pred Proj.', sublabel: 'MLP', color: COLORS.violet, desc: 'Projects predictor output to match embedding dimensionality.' },
+        // 5: L_pred (MSE loss)
+        { x: W * 0.37, y: lossY - bh / 2, w: W * 0.16, h: bh, label: 'L_pred', sublabel: 'MSE loss', color: COLORS.accent, desc: 'L_pred = mean((pred_emb - tgt_emb)^2). Gradients flow to both predictor and encoder.' },
+        // 6: L_sigreg
+        { x: W * 0.13, y: lossY - bh / 2, w: W * 0.14, h: bh, label: 'L_sigreg', sublabel: 'SIGReg', color: COLORS.green, desc: 'Regularization loss that prevents representation collapse. Only affects encoder.' },
+        // 7: Target embeddings (no grad? Actually yes, grads flow through)
+        { x: W * 0.79, y: cy - bh / 2, w: W * 0.14, h: bh, label: 'tgt_emb', sublabel: 'emb[:, n_preds:]', color: COLORS.green, desc: 'Target embeddings. Same encoder output, so gradients from L_pred flow back to encoder.' },
+      ];
+    }
+
+    function drawRoundedBox(ctx, box, highlighted) {
+      const { x, y, w, h, label, sublabel, color } = box;
+      // Shadow
+      if (highlighted) {
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 12;
+      }
+      ctx.fillStyle = highlighted ? color : COLORS.white;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = highlighted ? 2.5 : 1.5;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, 6);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+
+      ctx.font = 'bold 11px "Source Code Pro", monospace';
+      ctx.fillStyle = highlighted ? COLORS.white : color;
+      ctx.textAlign = 'center';
+      ctx.fillText(label, x + w / 2, y + h / 2 - 5);
+      ctx.font = '9px "Source Code Pro", monospace';
+      ctx.fillStyle = highlighted ? 'rgba(255,255,255,0.8)' : COLORS.muted;
+      ctx.fillText(sublabel, x + w / 2, y + h / 2 + 10);
+    }
+
+    function draw() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+
+      const boxes = getBoxes();
+
+      // Title
+      ctx.font = '12px "Source Code Pro", monospace';
+      ctx.fillStyle = COLORS.muted;
+      ctx.textAlign = 'left';
+      ctx.fillText('Gradient Flow Diagram', 20, 20);
+
+      // Draw arrows (data flow)
+      // Encoder -> Projector
+      drawArrow(ctx, boxes[0].x + boxes[0].w, boxes[0].y + boxes[0].h / 2,
+        boxes[1].x, boxes[1].y + boxes[1].h / 2, COLORS.muted, 7);
+
+      // Projector -> ARPredictor (ctx_emb path)
+      drawArrow(ctx, boxes[1].x + boxes[1].w, boxes[1].y + boxes[1].h / 2,
+        boxes[3].x, boxes[3].y + boxes[3].h / 2, COLORS.blue, 7);
+      ctx.font = '9px "Source Code Pro", monospace';
+      ctx.fillStyle = COLORS.blue;
+      ctx.textAlign = 'center';
+      ctx.fillText('ctx_emb', (boxes[1].x + boxes[1].w + boxes[3].x) / 2, boxes[1].y + boxes[1].h / 2 - 10);
+
+      // Action Encoder -> ARPredictor (action conditioning)
+      const actMidX = boxes[2].x + boxes[2].w;
+      const actMidY = boxes[2].y + boxes[2].h / 2;
+      const predMidX = boxes[3].x + boxes[3].w / 2;
+      const predBottomY = boxes[3].y + boxes[3].h;
+      ctx.beginPath();
+      ctx.moveTo(actMidX, actMidY);
+      ctx.quadraticCurveTo(predMidX, actMidY, predMidX, predBottomY);
+      ctx.strokeStyle = COLORS.amber;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // Arrowhead
+      const aheadY = predBottomY;
+      ctx.beginPath();
+      ctx.moveTo(predMidX, aheadY);
+      ctx.lineTo(predMidX - 5, aheadY + 8);
+      ctx.lineTo(predMidX + 5, aheadY + 8);
+      ctx.closePath();
+      ctx.fillStyle = COLORS.amber;
+      ctx.fill();
+      ctx.font = '9px "Source Code Pro", monospace';
+      ctx.fillStyle = COLORS.amber;
+      ctx.textAlign = 'center';
+      ctx.fillText('ctx_act (conditioning)', (actMidX + predMidX) / 2, actMidY - 8);
+
+      // ARPredictor -> Pred Projector
+      drawArrow(ctx, boxes[3].x + boxes[3].w, boxes[3].y + boxes[3].h / 2,
+        boxes[4].x, boxes[4].y + boxes[4].h / 2, COLORS.violet, 7);
+
+      // Projector -> tgt_emb (same encoder, different time steps)
+      const projCenterX = boxes[1].x + boxes[1].w / 2;
+      const tgtCenterX = boxes[7].x + boxes[7].w / 2;
+      ctx.beginPath();
+      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = 'rgba(5,150,105,0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.moveTo(projCenterX, boxes[1].y);
+      ctx.quadraticCurveTo((projCenterX + tgtCenterX) / 2, boxes[1].y - 36, tgtCenterX, boxes[7].y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = '8px "Source Code Pro", monospace';
+      ctx.fillStyle = COLORS.green;
+      ctx.textAlign = 'center';
+      ctx.fillText('same encoder', (projCenterX + tgtCenterX) / 2, boxes[1].y - 40);
+
+      // Pred Projector -> L_pred (pred_emb)
+      const predProjBottom = boxes[4].y + boxes[4].h;
+      const lossTop = boxes[5].y;
+      ctx.beginPath();
+      ctx.moveTo(boxes[4].x + boxes[4].w / 2, predProjBottom);
+      ctx.quadraticCurveTo(boxes[4].x + boxes[4].w / 2, (predProjBottom + lossTop) / 2,
+        boxes[5].x + boxes[5].w, boxes[5].y + boxes[5].h / 2);
+      ctx.strokeStyle = COLORS.accent;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = '9px "Source Code Pro", monospace';
+      ctx.fillStyle = COLORS.accent;
+      ctx.textAlign = 'right';
+      ctx.fillText('pred_emb', boxes[5].x + boxes[5].w + 4, boxes[5].y - 4);
+
+      // tgt_emb -> L_pred
+      ctx.beginPath();
+      ctx.moveTo(tgtCenterX, boxes[7].y + boxes[7].h);
+      ctx.quadraticCurveTo(tgtCenterX, (boxes[7].y + boxes[7].h + lossTop) / 2,
+        boxes[5].x + boxes[5].w, boxes[5].y + boxes[5].h * 0.7);
+      ctx.strokeStyle = COLORS.green;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Encoder -> L_sigreg
+      ctx.beginPath();
+      ctx.moveTo(boxes[0].x + boxes[0].w / 2, boxes[0].y + boxes[0].h);
+      ctx.lineTo(boxes[6].x + boxes[6].w / 2, boxes[6].y);
+      ctx.strokeStyle = COLORS.green;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Gradient arrows (backward) - thick dashed red lines
+      // L_pred -> Pred Proj -> ARPredictor (backward)
+      ctx.beginPath();
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = 'rgba(194,64,42,0.4)';
+      ctx.lineWidth = 2;
+      ctx.moveTo(boxes[5].x + boxes[5].w / 2, boxes[5].y);
+      ctx.lineTo(boxes[5].x + boxes[5].w / 2, boxes[5].y - 16);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Gradient label
+      ctx.font = '9px "Source Code Pro", monospace';
+      ctx.fillStyle = 'rgba(194,64,42,0.7)';
+      ctx.textAlign = 'center';
+      ctx.fillText('\u2191 gradients flow to predictor AND encoder', boxes[5].x + boxes[5].w / 2, boxes[5].y + boxes[5].h + 18);
+
+      // Draw boxes (on top of arrows)
+      for (let i = 0; i < boxes.length; i++) {
+        drawRoundedBox(ctx, boxes[i], i === hoveredBox);
+      }
+
+      // Show description tooltip for hovered box
+      if (hoveredBox >= 0 && hoveredBox < boxes.length) {
+        const box = boxes[hoveredBox];
+        const tooltipX = Math.min(box.x + box.w / 2, W - 180);
+        const tooltipY = box.y - 30;
+
+        ctx.font = '11px "Spectral", serif';
+        const textWidth = ctx.measureText(box.desc).width;
+        const tw = Math.min(textWidth + 20, W * 0.5);
+
+        // Wrap text
+        const words = box.desc.split(' ');
+        const lines = [];
+        let currentLine = '';
+        const maxLineW = tw - 16;
+        for (const word of words) {
+          const testLine = currentLine ? currentLine + ' ' + word : word;
+          if (ctx.measureText(testLine).width > maxLineW && currentLine) {
+            lines.push(currentLine);
+            currentLine = word;
+          } else {
+            currentLine = testLine;
+          }
+        }
+        if (currentLine) lines.push(currentLine);
+
+        const lineH = 16;
+        const th = lines.length * lineH + 12;
+        const tx = Math.max(8, Math.min(tooltipX - tw / 2, W - tw - 8));
+        const ty = tooltipY - th;
+
+        ctx.fillStyle = 'rgba(26,26,46,0.95)';
+        ctx.beginPath();
+        ctx.roundRect(tx, ty, tw, th, 5);
+        ctx.fill();
+
+        ctx.font = '11px "Spectral", serif';
+        ctx.fillStyle = '#e0e0e8';
+        ctx.textAlign = 'left';
+        for (let l = 0; l < lines.length; l++) {
+          ctx.fillText(lines[l], tx + 8, ty + 14 + l * lineH);
+        }
+      }
+    }
+
+    // Hover interaction
+    canvas.addEventListener('mousemove', function(e) {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const boxes = getBoxes();
+      let found = -1;
+      for (let i = 0; i < boxes.length; i++) {
+        const b = boxes[i];
+        if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
+          found = i;
+          break;
+        }
+      }
+      if (found !== hoveredBox) {
+        hoveredBox = found;
+        canvas.style.cursor = found >= 0 ? 'pointer' : 'default';
+        draw();
+      }
+    });
+
+    canvas.addEventListener('mouseleave', function() {
+      if (hoveredBox >= 0) {
+        hoveredBox = -1;
+        draw();
+      }
+    });
+
+    resize();
+    draw();
+    window.addEventListener('resize', function() { resize(); draw(); });
+  })();
+
+})();
+</script>
+
+</body>
+</html>
