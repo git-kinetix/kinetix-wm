@@ -17,6 +17,7 @@ class JEPA(nn.Module):
         action_encoder,
         projector=None,
         pred_proj=None,
+        pooling="cls",
     ):
         super().__init__()
 
@@ -25,17 +26,41 @@ class JEPA(nn.Module):
         self.action_encoder = action_encoder
         self.projector = projector or nn.Identity()
         self.pred_proj = pred_proj or nn.Identity()
+        self.pooling = pooling
 
     def encode(self, info):
         """Encode observations and actions into embeddings.
         info: dict with pixels and action keys
+
+        Supports two encoder types controlled by self.pooling:
+        - "cls": HuggingFace ViT (extracts CLS token from last_hidden_state)
+        - "mean": VJEPA or other patch-based encoders (mean pooling over tokens)
         """
 
         pixels = info['pixels'].float()
         b = pixels.size(0)
         pixels = rearrange(pixels, "b t ... -> (b t) ...") # flatten for encoding
-        output = self.encoder(pixels, interpolate_pos_encoding=True)
-        pixels_emb = output.last_hidden_state[:, 0]  # cls token
+
+        if self.pooling == "cls":
+            output = self.encoder(pixels, interpolate_pos_encoding=True)
+            pixels_emb = output.last_hidden_state[:, 0]  # cls token
+        else:
+            # VJEPA / timm path: mean-pool over patch tokens
+            # Try 4D input first (timm ViT), fall back to 5D (VJEPA with tubelets)
+            output = self.encoder(pixels)
+            # Handle raw tensor, timm output, or HF-style output
+            if torch.is_tensor(output):
+                tokens = output
+            elif hasattr(output, "last_hidden_state"):
+                tokens = output.last_hidden_state
+            else:
+                tokens = output  # assume tensor-like
+            # Pool: if 2D (already pooled by timm num_classes=0), use directly
+            if tokens.ndim == 2:
+                pixels_emb = tokens
+            else:
+                pixels_emb = tokens.mean(dim=1)  # global average pooling
+
         emb = self.projector(pixels_emb)
         info["emb"] = rearrange(emb, "(b t) d -> b t d", b=b)
 

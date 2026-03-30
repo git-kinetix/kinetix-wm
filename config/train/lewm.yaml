@@ -13,6 +13,12 @@ patch_size: 14
 encoder_scale: tiny
 dump_object: True
 
+# VJEPA encoder options (set encoder_type=vjepa to use)
+encoder_type: vit_hf
+vjepa_checkpoint: null
+encoder_frozen: false
+encoder_pooling: cls
+
 trainer:
   max_epochs: 100
   devices: auto
@@ -42,6 +48,17 @@ wandb:
     resume: allow
     log_model: False
 
+clearml:
+  enabled: false
+  project: lewm
+  task_name: ${output_model_name}
+  # ClearML Dataset ID for auto-download of training data
+  dataset_id: null
+  # Tags applied to the ClearML task
+  tags: []
+  # Upload final checkpoint as ClearML output model
+  upload_model: true
+
 wm:
   type: lewm
   history_size: 3
@@ -55,6 +72,7 @@ predictor:
   dim_head: 64
   dropout: 0.1
   emb_dropout: 0.0
+  # hidden_dim_override: null  # set to decouple predictor width from encoder
 
 loss:
   sigreg:
