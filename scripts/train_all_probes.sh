@@ -28,8 +28,8 @@ ENVS=(
     "tworoom:2:5"
     "reacher:2:5"
     "humanoid:21:5"
-    # cube: action_dim TBD after dataset inspection; uncomment when known
-    # "cube_single_expert:??:5"
+    "cube_single_expert:5:5"
+    "prod_beta0_200ep:6:5"
 )
 
 # Common probe training parameters
