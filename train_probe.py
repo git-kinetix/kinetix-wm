@@ -99,6 +99,8 @@ def main():
     parser.add_argument("--frameskip", type=int, default=5)
     parser.add_argument("--action-dim", type=int, default=6)
     parser.add_argument("--num-workers", type=int, default=8)
+    parser.add_argument("--save-every", type=int, default=0,
+                        help="Save checkpoint every N epochs (0=only final)")
     parser.add_argument("--clearml", action="store_true")
     parser.add_argument("--project", default="lewm")
     parser.add_argument("--task-name", default="probe-vitb16-frozen")
@@ -240,6 +242,19 @@ def main():
         print(f"Epoch {epoch:3d}/{args.epochs} | "
               f"train pred={t_pred:.6f} ratio={t_ratio:.2f} | "
               f"val pred={v_pred:.6f} ratio={v_ratio:.2f} sreg={v_sreg:.2f}{marker}")
+
+        # Periodic checkpoint
+        if args.save_every > 0 and (epoch + 1) % args.save_every == 0:
+            ep_path = os.path.join(cache_dir, f"{args.task_name}_epoch{epoch+1}_probe_components.pt")
+            torch.save({
+                "projector": projector.state_dict(),
+                "predictor": predictor.state_dict(),
+                "pred_proj": pred_proj.state_dict(),
+                "action_encoder": action_encoder.state_dict(),
+                "config": vars(args),
+                "epoch": epoch + 1,
+                "val_copy_ratio": v_ratio,
+            }, ep_path)
 
         # ClearML logging
         if cl_logger:
