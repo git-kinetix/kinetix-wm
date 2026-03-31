@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeWM — Cross-Environment Comparison</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1a1a2e; --paper: #faf8f4; --surface: #ffffff;
+  --accent: #c44536; --accent2: #2d6a4f; --blue: #2563eb;
+  --muted: #6b7280; --border: #d4d0c8; --code-bg: #f0ede6;
+  --serif: 'Source Serif 4', 'Newsreader', Georgia, serif;
+  --body: 'Newsreader', Georgia, serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { font-size: 17px; scroll-behavior: smooth; }
+body { font-family: var(--body); color: var(--ink); background: var(--paper); line-height: 1.72; -webkit-font-smoothing: antialiased; }
+.d-article { max-width: 780px; margin: 0 auto; padding: 2rem 1.5rem 5rem; }
+.d-title { padding: 3.5rem 0 1.8rem; border-bottom: 1px solid var(--border); margin-bottom: 2rem; }
+.d-title h1 { font-family: var(--serif); font-weight: 700; font-size: 2.2rem; line-height: 1.2; letter-spacing: -0.02em; }
+.d-title .subtitle { font-family: var(--body); font-weight: 300; font-size: 1.05rem; color: var(--muted); margin-top: 0.6rem; }
+.d-byline { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: 0.8rem; letter-spacing: 0.02em; }
+h2 { font-family: var(--serif); font-weight: 600; font-size: 1.45rem; margin: 2.5rem 0 0.8rem; padding-top: 1.2rem; border-top: 1px solid var(--border); }
+p { margin-bottom: 1rem; }
+a { color: var(--blue); text-decoration: none; } a:hover { text-decoration: underline; }
+.aside { background: var(--code-bg); border-left: 3px solid var(--accent); padding: 0.8rem 1rem; margin: 1.2rem 0; font-size: 0.85rem; border-radius: 0 4px 4px 0; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.8rem 1rem; text-align: center; }
+.stat-val { font-family: var(--mono); font-size: 1.5rem; font-weight: 500; }
+.stat-val.good { color: var(--accent2); } .stat-val.accent { color: var(--blue); } .stat-val.bad { color: var(--accent); }
+.stat-label { font-size: 0.7rem; color: var(--muted); margin-top: 0.2rem; }
+.summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.8rem; margin-bottom: 1.5rem; }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; margin: 1.2rem 0; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; font-size: 0.85rem; }
+thead { background: var(--code-bg); }
+th { font-family: var(--mono); font-size: 0.7rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding: 0.6rem 0.7rem; text-align: center; border-bottom: 1px solid var(--border); }
+th:first-child { text-align: left; }
+td { font-family: var(--mono); font-size: 0.82rem; padding: 0.55rem 0.7rem; text-align: center; border-bottom: 1px solid var(--border); }
+td:first-child { text-align: left; font-family: var(--body); font-weight: 600; font-size: 0.9rem; }
+tr:last-child td { border-bottom: none; }
+td.best { font-weight: 700; box-shadow: inset 0 0 0 2px var(--accent2); border-radius: 3px; }
+.pill { display: inline-block; padding: 0.1rem 0.45rem; border-radius: 3px; font-size: 0.78rem; }
+.pill.green { background: #d1fae5; color: #065f46; } .pill.yellow { background: #fef3c7; color: #92400e; } .pill.red { background: #fee2e2; color: #991b1b; }
+.pill.na { background: var(--code-bg); color: var(--muted); }
+
+/* Chart container */
+#chart-container { margin: 1.5rem 0; }
+.chart-legend { display: flex; gap: 1.2rem; font-family: var(--mono); font-size: 0.68rem; color: var(--muted); margin-bottom: 0.6rem; flex-wrap: wrap; }
+.chart-legend span { display: flex; align-items: center; gap: 0.3rem; }
+.chart-legend .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+/* Links grid */
+.env-links { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin: 1.2rem 0; }
+.env-link { display: block; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 1rem; font-family: var(--mono); font-size: 0.78rem; text-align: center; transition: all 0.15s; }
+.env-link:hover { background: var(--code-bg); text-decoration: none; border-color: var(--blue); }
+
+@media (max-width: 700px) { html { font-size: 15px; } .summary { grid-template-columns: repeat(2, 1fr); } .env-links { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<article class="d-article">
+  <header class="d-title">
+    <h1>Cross-Environment Comparison</h1>
+    <p class="subtitle">LeWM world model copy ratios across all environments and encoder configurations.</p>
+    <div class="d-byline">LeWM Project &middot; Updated <span id="date">--</span></div>
+  </header>
+
+  <div class="aside" id="data-notice">Loading data&hellip;</div>
+
+  <div class="summary" id="summary-cards"></div>
+
+  <h2>Copy Ratio Table</h2>
+  <p>Values below 1.0 mean the model predicts better than copying the last frame. Green is good (&lt;0.5), yellow is marginal (&lt;1.0), red means the model is worse than copying.</p>
+  <div style="overflow-x:auto"><table><thead><tr>
+    <th>Environment</th><th>ViT-Tiny (scratch)</th><th>Probe (sr=0.5)</th><th>Probe (best sr)</th><th>Pretrained</th>
+  </tr></thead><tbody id="table-body"></tbody></table></div>
+
+  <h2>Copy Ratio Chart</h2>
+  <div class="chart-legend">
+    <span><span class="swatch" style="background:var(--blue)"></span> ViT-Tiny</span>
+    <span><span class="swatch" style="background:var(--accent2)"></span> Probe (sr=0.5)</span>
+    <span><span class="swatch" style="background:#e9a820"></span> Probe (best sr)</span>
+    <span><span class="swatch" style="background:var(--accent)"></span> Pretrained</span>
+  </div>
+  <div id="chart-container"></div>
+
+  <h2>Key Findings</h2>
+  <div id="findings">
+    <p><strong>1. Frozen encoders with linear probes dramatically outperform training from scratch</strong> on high-dimensional environments (Humanoid, Human Motion), achieving copy ratios well below 1.0 where scratch training fails.</p>
+    <p><strong>2. SIGReg regularization matters.</strong> The probe with sr=0.5 consistently matches or approaches the best-tuned regularization strength, suggesting it is a robust default.</p>
+    <p><strong>3. Low-dimensional environments (PushT, Reacher)</strong> are solvable even by small ViT-Tiny models trained from scratch, confirming they serve as useful baselines but do not stress-test the approach.</p>
+    <p class="aside">These findings use placeholder data. Run <code>python eval_all.py</code> to generate <code>comparison_data.json</code> with real results.</p>
+  </div>
+
+  <h2>Per-Environment Explorers</h2>
+  <p>Click an environment to see detailed rollouts, MSE breakdowns, and frame-by-frame comparisons.</p>
+  <div class="env-links" id="env-links"></div>
+</article>
+
+<script>
+const PLACEHOLDER = {
+  environments: [
+    {name: "PushT", vit_tiny: 0.21, probe_sr05: null, probe_best: null, pretrained: null},
+    {name: "TwoRoom", vit_tiny: null, probe_sr05: null, probe_best: null, pretrained: null},
+    {name: "Cube", vit_tiny: null, probe_sr05: null, probe_best: null, pretrained: null},
+    {name: "Reacher", vit_tiny: null, probe_sr05: null, probe_best: null, pretrained: null},
+    {name: "Humanoid", vit_tiny: 1.94, probe_sr05: 0.12, probe_best: 0.12, pretrained: null},
+    {name: "Human Motion", vit_tiny: 4.56, probe_sr05: 0.33, probe_best: 0.33, pretrained: null},
+  ]
+};
+
+const EXPLORER_FILES = {
+  "PushT": "pusht-explorer.html", "TwoRoom": "tworoom-explorer.html",
+  "Cube": "cube-explorer.html", "Reacher": "reacher-explorer.html",
+  "Humanoid": "humanoid-explorer.html", "Human Motion": "humanmotion-explorer.html"
+};
+
+const COLORS = {vit_tiny: '#2563eb', probe_sr05: '#2d6a4f', probe_best: '#e9a820', pretrained: '#c44536'};
+const KEYS = ['vit_tiny', 'probe_sr05', 'probe_best', 'pretrained'];
+
+function pillClass(v) { return v === null ? 'na' : v < 0.5 ? 'green' : v < 1.0 ? 'yellow' : 'red'; }
+function fmt(v) { return v === null ? '\u2014' : v.toFixed(2); }
+
+function render(data) {
+  document.getElementById('date').textContent = data.date || new Date().toISOString().slice(0, 10);
+  const envs = data.environments;
+
+  // Summary cards
+  const allVals = envs.flatMap(e => KEYS.map(k => e[k]).filter(v => v !== null));
+  const completed = envs.filter(e => KEYS.some(k => e[k] !== null)).length;
+  const bestVal = allVals.length ? Math.min(...allVals) : null;
+  const avgVal = allVals.length ? allVals.reduce((a,b)=>a+b,0)/allVals.length : null;
+  const sub1 = allVals.filter(v => v < 1.0).length;
+  document.getElementById('summary-cards').innerHTML =
+    `<div class="stat-card"><div class="stat-val accent">${completed}/${envs.length}</div><div class="stat-label">Environments tested</div></div>` +
+    `<div class="stat-card"><div class="stat-val good">${bestVal !== null ? bestVal.toFixed(2) : '\u2014'}</div><div class="stat-label">Best copy ratio</div></div>` +
+    `<div class="stat-card"><div class="stat-val ${avgVal !== null && avgVal < 1 ? 'good' : 'bad'}">${avgVal !== null ? avgVal.toFixed(2) : '\u2014'}</div><div class="stat-label">Mean copy ratio</div></div>` +
+    `<div class="stat-card"><div class="stat-val accent">${sub1}/${allVals.length}</div><div class="stat-label">Configs &lt; 1.0</div></div>`;
+
+  // Table
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = envs.map(env => {
+    const vals = KEYS.map(k => env[k]);
+    const validVals = vals.filter(v => v !== null);
+    const minVal = validVals.length ? Math.min(...validVals) : null;
+    return '<tr>' + `<td>${env.name}</td>` + KEYS.map((k, i) => {
+      const v = vals[i]; const isBest = v !== null && v === minVal && validVals.length > 1;
+      return `<td${isBest ? ' class="best"' : ''}><span class="pill ${pillClass(v)}">${fmt(v)}</span></td>`;
+    }).join('') + '</tr>';
+  }).join('');
+
+  // SVG bar chart
+  const chartEnvs = envs.filter(e => KEYS.some(k => e[k] !== null));
+  const maxVal = Math.max(1.0, ...chartEnvs.flatMap(e => KEYS.map(k => e[k]).filter(v => v !== null)));
+  const barH = 18, groupGap = 28, barGap = 3, labelW = 100, chartW = 640;
+  const plotW = chartW - labelW - 10;
+  const svgH = chartEnvs.length * (KEYS.length * (barH + barGap) + groupGap);
+  let svg = `<svg viewBox="0 0 ${chartW} ${svgH}" width="100%" style="max-width:${chartW}px;font-family:'JetBrains Mono',monospace" xmlns="http://www.w3.org/2000/svg">`;
+  // reference line at 1.0
+  const refX = labelW + (1.0 / maxVal) * plotW;
+  svg += `<line x1="${refX}" y1="0" x2="${refX}" y2="${svgH}" stroke="#d4d0c8" stroke-width="1" stroke-dasharray="4,3"/>`;
+  svg += `<text x="${refX}" y="12" fill="#6b7280" font-size="9" text-anchor="middle">copy=1.0</text>`;
+  let y = 20;
+  chartEnvs.forEach(env => {
+    svg += `<text x="${labelW - 8}" y="${y + KEYS.length*(barH+barGap)/2}" fill="#1a1a2e" font-size="11" text-anchor="end" dominant-baseline="middle">${env.name}</text>`;
+    KEYS.forEach(k => {
+      const v = env[k];
+      if (v !== null) {
+        const w = Math.max(2, (v / maxVal) * plotW);
+        svg += `<rect x="${labelW}" y="${y}" width="${w}" height="${barH}" rx="2" fill="${COLORS[k]}" opacity="0.82"/>`;
+        svg += `<text x="${labelW + w + 4}" y="${y + barH/2 + 1}" fill="#1a1a2e" font-size="9" dominant-baseline="middle">${v.toFixed(2)}</text>`;
+      }
+      y += barH + barGap;
+    });
+    y += groupGap - barGap;
+  });
+  svg += '</svg>';
+  document.getElementById('chart-container').innerHTML = svg;
+
+  // Environment links
+  document.getElementById('env-links').innerHTML = envs.map(env => {
+    const file = EXPLORER_FILES[env.name] || '#';
+    return `<a class="env-link" href="${file}">${env.name}</a>`;
+  }).join('');
+
+  // Data notice
+  const notice = document.getElementById('data-notice');
+  if (data._source === 'file') {
+    notice.innerHTML = 'Loaded results from <code>comparison_data.json</code>.';
+    notice.style.borderLeftColor = 'var(--accent2)';
+  } else {
+    notice.innerHTML = 'Showing <strong>placeholder data</strong>. Run <code>python eval_all.py</code> to generate <code>comparison_data.json</code>.';
+  }
+}
+
+// Try loading real data, fall back to placeholder
+fetch('comparison_data.json').then(r => {
+  if (!r.ok) throw new Error('not found');
+  return r.json();
+}).then(d => { d._source = 'file'; render(d); })
+  .catch(() => render(PLACEHOLDER));
+</script>
+</body>
+</html>
