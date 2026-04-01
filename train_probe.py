@@ -156,6 +156,7 @@ def main():
 
     # Training loop
     best_val_ratio = float("inf")
+    main._history = []
     for epoch in range(args.epochs):
         # Train
         projector.train(); predictor.train(); pred_proj.train(); action_encoder.train()
@@ -239,6 +240,13 @@ def main():
         else:
             marker = ""
 
+        main._history.append({
+            "epoch": epoch, "train_pred": t_pred, "train_ratio": t_ratio,
+            "train_copy": t_copy, "val_pred": v_pred, "val_ratio": v_ratio,
+            "val_copy": v_copy, "val_sigreg": v_sreg,
+            "lr": scheduler.get_last_lr()[0],
+        })
+
         print(f"Epoch {epoch:3d}/{args.epochs} | "
               f"train pred={t_pred:.6f} ratio={t_ratio:.2f} | "
               f"val pred={v_pred:.6f} ratio={v_ratio:.2f} sreg={v_sreg:.2f}{marker}")
@@ -268,6 +276,17 @@ def main():
             cl_logger.report_scalar("lr", "optimizer", scheduler.get_last_lr()[0], epoch)
 
     print(f"\nBest val copy_ratio: {best_val_ratio:.4f}")
+
+    # Save training metrics JSON (full curve for later analysis)
+    import json as _json
+    metrics_path = os.path.join(cache_dir, f"{args.task_name}_metrics.json")
+    _json.dump({
+        "config": vars(args),
+        "best_val_copy_ratio": best_val_ratio,
+        "epochs": list(range(args.epochs)),
+        "history": getattr(main, '_history', []),
+    }, open(metrics_path, "w"), indent=2)
+    print(f"Saved metrics to {metrics_path}")
 
     # Save components for assembly into full JEPA checkpoint
     save_path = os.path.join(cache_dir, f"{args.task_name}_probe_components.pt")
