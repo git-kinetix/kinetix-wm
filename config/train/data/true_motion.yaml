@@ -1,0 +1,9 @@
+dataset:
+  num_steps: ${eval:'${wm.num_preds} + ${wm.history_size}'}
+  frameskip: 5
+  name: true_motion_vitb16emb
+  keys_to_load:
+    - embedding
+    - action
+  keys_to_cache:
+    - action
