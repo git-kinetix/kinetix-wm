@@ -1,24 +1,23 @@
-name: lewm-encode
+name: lewm-truemotion
 
 resources:
   cloud: aws
   region: eu-west-1
-  accelerators: {T4:1, A10G:1, L4:1}
+  accelerators: A10G:1
   use_spot: true
-  disk_size: 50
+  disk_size: 80
+
+num_nodes: 5
+
+file_mounts:
+  /task/process.py: ./sky/process.py
 
 setup: |
-  pip install torch torchvision timm av boto3 h5py numpy Pillow hdf5plugin 2>&1 | tail -5
-  # Download worker script from S3 using boto3
-  python3 -c "import boto3; boto3.client('s3', region_name='eu-west-1').download_file('kinetix-rd-storage', 'lewm/encode_worker.py', '/tmp/encode_worker.py')"
+  pip install uv 2>/dev/null || true
+  uv pip install --system "torch==2.1.2+cu121" "torchvision==0.16.2+cu121" --index-url https://download.pytorch.org/whl/cu121 2>&1 | tail -3
+  uv pip install --system timm av boto3 Pillow numpy h5py 2>&1 | tail -3
 
 run: |
-  export PYTHONUNBUFFERED=1
-  # Single worker mode — processes all items
-  python /tmp/encode_worker.py \
-    --manifest-s3 s3://kinetix-rd-storage/lewm/true_motion_manifest.json \
-    --output-s3 s3://kinetix-rd-storage/lewm/embeddings/ \
-    --checkpoint-s3 s3://kinetix-rd-storage/lewm/vitb16_pretrained.pt \
-    --worker-id 0 \
-    --num-workers 1 \
-    --batch-size 512
+  echo "Node rank: $SKYPILOT_NODE_RANK / $SKYPILOT_NUM_NODES"
+  echo "GPU: $(nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader)"
+  python /task/process.py
