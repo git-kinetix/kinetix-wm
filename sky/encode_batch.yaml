@@ -1,0 +1,24 @@
+name: lewm-encode
+
+resources:
+  cloud: aws
+  region: eu-west-1
+  accelerators: {T4:1, A10G:1, L4:1}
+  use_spot: true
+  disk_size: 50
+
+setup: |
+  pip install torch torchvision timm av boto3 h5py numpy Pillow hdf5plugin 2>&1 | tail -5
+  # Download worker script from S3 using boto3
+  python3 -c "import boto3; boto3.client('s3', region_name='eu-west-1').download_file('kinetix-rd-storage', 'lewm/encode_worker.py', '/tmp/encode_worker.py')"
+
+run: |
+  export PYTHONUNBUFFERED=1
+  # Single worker mode — processes all items
+  python /tmp/encode_worker.py \
+    --manifest-s3 s3://kinetix-rd-storage/lewm/true_motion_manifest.json \
+    --output-s3 s3://kinetix-rd-storage/lewm/embeddings/ \
+    --checkpoint-s3 s3://kinetix-rd-storage/lewm/vitb16_pretrained.pt \
+    --worker-id 0 \
+    --num-workers 1 \
+    --batch-size 512
