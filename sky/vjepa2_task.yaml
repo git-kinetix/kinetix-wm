@@ -1,0 +1,23 @@
+name: lewm-vjepa2
+
+resources:
+  cloud: aws
+  region: eu-west-1
+  accelerators: A10G:1
+  use_spot: true
+  disk_size: 80
+
+num_nodes: 5
+
+file_mounts:
+  /task/vjepa2_worker.py: ./sky/vjepa2_worker.py
+
+setup: |
+  pip install uv 2>/dev/null || true
+  uv pip install --system "torch==2.1.2+cu121" "torchvision==0.16.2+cu121" --index-url https://download.pytorch.org/whl/cu121 2>&1 | tail -3
+  uv pip install --system "numpy<2" timm einops decord av boto3 Pillow h5py 2>&1 | tail -3
+
+run: |
+  echo "Node rank: $SKYPILOT_NODE_RANK / $SKYPILOT_NUM_NODES"
+  echo "GPU: $(nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader)"
+  python /task/vjepa2_worker.py
