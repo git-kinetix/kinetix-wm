@@ -174,6 +174,26 @@ def main():
     # Load VJEPA2 ViT-Large
     print(f"[Node {rank}] Loading VJEPA2 ViT-Large...", flush=True)
     t_model = time.time()
+
+    # Fix: the vjepa2 main branch has localhost:8300 hardcoded for testing.
+    # Download the repo source first, patch the URL, then load the model.
+    import torch.hub as _hub
+    _repo_dir = _hub._get_cache_or_reload(
+        "facebookresearch/vjepa2", force_reload=False, trust_repo=True, calling_fn="load"
+    )
+    _backbones_path = os.path.join(_repo_dir, "src", "hub", "backbones.py")
+    if os.path.exists(_backbones_path):
+        with open(_backbones_path) as f:
+            src = f.read()
+        if "localhost:8300" in src:
+            src = src.replace(
+                'VJEPA_BASE_URL = "http://localhost:8300"',
+                'VJEPA_BASE_URL = "https://dl.fbaipublicfiles.com/vjepa2"',
+            )
+            with open(_backbones_path, "w") as f:
+                f.write(src)
+            print(f"[Node {rank}] Patched VJEPA_BASE_URL", flush=True)
+
     encoder, predictor = torch.hub.load(
         "facebookresearch/vjepa2", "vjepa2_vit_large", trust_repo=True
     )
